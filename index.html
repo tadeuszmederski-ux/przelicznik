@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b5d63">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Przelicznik inżynierski</title>
+<style>
+  /* Układ: pasek kategorii (ulubione na początku), pole wejściowe, lista wszystkich jednostek do stuknięcia. */
+  :root {
+    --bg: #eef2f4;
+    --surface: #ffffff;
+    --ink: #13222b;
+    --muted: #5b6d77;
+    --line: #d5dee3;
+    --accent: #0b6b72;
+    --accent-ink: #ffffff;
+    --hot: #fff3d6;
+    --hot-line: #e0a526;
+    --star: #c47f00;
+    --field: #f7fafb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d171c; --surface: #15242b; --ink: #e6eef1; --muted: #8ea3ad;
+      --line: #263b44; --accent: #3fb7bf; --accent-ink: #062226;
+      --hot: #2e2710; --hot-line: #c9961f; --star: #f0b93a; --field: #0f1d23;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding-block: 12px 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    min-height: 100vh;
+  }
+  main { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 1.25rem; margin: 0; letter-spacing: .01em; }
+  .sub { color: var(--muted); font-size: .8rem; }
+
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+  .chips button { flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+                  font: inherit; font-size: .92rem; font-weight: 600; padding: 8px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .chips button .st { color: var(--star); margin-right: 4px; }
+  .chips button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .chips button[aria-selected="true"] .st { color: inherit; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tog { font: inherit; font-size: .85rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+         border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+  .tog[aria-pressed="true"] { border-color: var(--star); background: var(--hot); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .inputs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 9.5rem); gap: 10px; }
+  .inputs.one { grid-template-columns: minmax(0, 1fr); }
+  label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; }
+  input, select {
+    width: 100%; font: inherit; color: var(--ink); background: var(--field);
+    border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0;
+  }
+  input.big { font-size: 1.5rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
+
+  ul.res { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  ul.res li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: stretch; gap: 6px; }
+  ul.res li.nostar { grid-template-columns: minmax(0, 1fr) auto; }
+  .pick { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); gap: 8px; align-items: center; text-align: left;
+          font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+          border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+  .pick .u { font-weight: 700; }
+  .pick .n { grid-column: 1 / -1; font-size: .72rem; color: var(--muted); margin-top: -2px; }
+  .pick .v { text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; font-size: 1.05rem; }
+  li.src .pick { background: var(--hot); border-color: var(--hot-line); }
+  .sq { width: 44px; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; cursor: pointer;
+        font: inherit; font-weight: 700; color: var(--accent); }
+  .sq.fav { color: var(--star); }
+  .note { color: var(--muted); font-size: .8rem; margin: 0; }
+  .note b { color: var(--ink); }
+  .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+           background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: .9rem;
+           opacity: 0; pointer-events: none; transition: opacity .15s; max-width: 90vw; text-align: center; }
+  .toast.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Przelicznik inżynierski</h1>
+    <span class="sub" id="status"></span>
+  </header>
+
+  <div class="chips" id="chips" role="tablist" aria-label="Kategoria przeliczenia"></div>
+
+  <div class="bar">
+    <button type="button" class="tog" id="favCat" aria-pressed="false"></button>
+    <button type="button" class="tog" id="onlyFav" aria-pressed="false" hidden>Tylko ulubione jednostki</button>
+  </div>
+
+  <section class="card">
+    <div id="fuelBlock" hidden>
+      <label for="fuel">Paliwo</label>
+      <select id="fuel"></select>
+      <div class="row2">
+        <div>
+          <label for="wo" id="woLabel">Wartość opałowa</label>
+          <input id="wo" inputmode="decimal" autocomplete="off">
+        </div>
+        <div>
+          <label for="qunit">Jednostka ilości</label>
+          <select id="qunit"></select>
+        </div>
+      </div>
+      <div style="height:10px"></div>
+    </div>
+    <div class="inputs" id="mainInputs">
+      <div>
+        <label for="val">Wartość</label>
+        <input id="val" class="big" inputmode="decimal" autocomplete="off" placeholder="0">
+      </div>
+      <div id="unitWrap">
+        <label for="unit">Jednostka</label>
+        <select id="unit"></select>
+      </div>
+    </div>
+  </section>
+
+  <ul class="res" id="results" aria-live="polite"></ul>
+  <p class="note" id="info"></p>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Dane ----------------------------------------------------------------
+  // f = współczynnik do jednostki bazowej kategorii. Temperatura ma własne funkcje to/from (baza: K).
+  var ENERGIA = [
+    { u: "J",    n: "dżul",                                    f: 1 },
+    { u: "kJ",   n: "kilodżul",                                f: 1e3 },
+    { u: "MJ",   n: "megadżul",                                f: 1e6 },
+    { u: "GJ",   n: "gigadżul",                                f: 1e9 },
+    { u: "TJ",   n: "teradżul",                                f: 1e12 },
+    { u: "Wh",   n: "watogodzina",                             f: 3600 },
+    { u: "kWh",  n: "kilowatogodzina",                         f: 3.6e6 },
+    { u: "MWh",  n: "megawatogodzina",                         f: 3.6e9 },
+    { u: "GWh",  n: "gigawatogodzina",                         f: 3.6e12 },
+    { u: "kcal", n: "kilokaloria (IT)",                        f: 4186.8 },
+    { u: "Gcal", n: "gigakaloria (IT)",                        f: 4.1868e9 },
+    { u: "BTU",  n: "brytyjska jednostka cieplna (IT)",        f: 1055.05585262 },
+    { u: "toe",  n: "tona oleju ekwiwalentnego (41,868 GJ)",   f: 41.868e9 },
+    { u: "tce",  n: "tona węgla ekwiwalentnego (29,3076 GJ)",  f: 29.3076e9 }
+  ];
+  var MOC = [
+    { u: "W",      n: "wat",                          f: 1 },
+    { u: "kW",     n: "kilowat",                      f: 1e3 },
+    { u: "MW",     n: "megawat",                      f: 1e6 },
+    { u: "GW",     n: "gigawat",                      f: 1e9 },
+    { u: "KM",     n: "koń mechaniczny (metryczny)",  f: 735.49875 },
+    { u: "hp",     n: "koń mechaniczny (brytyjski)",  f: 745.69987158 },
+    { u: "kcal/h", n: "kilokaloria na godzinę",       f: 1.163 },
+    { u: "BTU/h",  n: "BTU na godzinę",               f: 0.29307107 },
+    { u: "MJ/h",   n: "megadżul na godzinę",          f: 1e6 / 3600 },
+    { u: "GJ/h",   n: "gigadżul na godzinę",          f: 1e9 / 3600 }
+  ];
+  var TEMP = [
+    { u: "°C", n: "stopień Celsjusza", to: function (x) { return x + 273.15; }, from: function (k) { return k - 273.15; } },
+    { u: "K",  n: "kelwin",            to: function (x) { return x; },          from: function (k) { return k; } },
+    { u: "°F", n: "stopień Fahrenheita", to: function (x) { return (x - 32) * 5 / 9 + 273.15; }, from: function (k) { return (k - 273.15) * 9 / 5 + 32; } },
+    { u: "°R", n: "stopień Rankine'a", to: function (x) { return x * 5 / 9; }, from: function (k) { return k * 9 / 5; } }
+  ];
+  var CISN = [
+    { u: "Pa",    n: "paskal",                          f: 1 },
+    { u: "hPa",   n: "hektopaskal",                     f: 100 },
+    { u: "kPa",   n: "kilopaskal",                      f: 1e3 },
+    { u: "MPa",   n: "megapaskal",                      f: 1e6 },
+    { u: "bar",   n: "bar",                             f: 1e5 },
+    { u: "mbar",  n: "milibar",                         f: 100 },
+    { u: "atm",   n: "atmosfera fizyczna",              f: 101325 },
+    { u: "at",    n: "atmosfera techniczna (kgf/cm²)",  f: 98066.5 },
+    { u: "mmHg",  n: "milimetr słupa rtęci",            f: 133.322387415 },
+    { u: "mmH₂O", n: "milimetr słupa wody",             f: 9.80665 },
+    { u: "psi",   n: "funt na cal kwadratowy",          f: 6894.757293168 },
+    { u: "inHg",  n: "cal słupa rtęci",                 f: 3386.389 }
+  ];
+  var DLUG = [
+    { u: "mm",  n: "milimetr", f: 1e-3 },
+    { u: "cm",  n: "centymetr", f: 1e-2 },
+    { u: "m",   n: "metr", f: 1 },
+    { u: "km",  n: "kilometr", f: 1e3 },
+    { u: "in",  n: "cal", f: 0.0254 },
+    { u: "ft",  n: "stopa", f: 0.3048 },
+    { u: "yd",  n: "jard", f: 0.9144 },
+    { u: "mi",  n: "mila lądowa", f: 1609.344 },
+    { u: "nmi", n: "mila morska", f: 1852 }
+  ];
+  var POW = [
+    { u: "mm²", n: "milimetr kwadratowy", f: 1e-6 },
+    { u: "cm²", n: "centymetr kwadratowy", f: 1e-4 },
+    { u: "m²",  n: "metr kwadratowy", f: 1 },
+    { u: "a",   n: "ar", f: 100 },
+    { u: "ha",  n: "hektar", f: 1e4 },
+    { u: "km²", n: "kilometr kwadratowy", f: 1e6 },
+    { u: "in²", n: "cal kwadratowy", f: 6.4516e-4 },
+    { u: "ft²", n: "stopa kwadratowa", f: 0.09290304 },
+    { u: "ac",  n: "akr", f: 4046.8564224 }
+  ];
+  var OBJ = [
+    { u: "ml",      n: "mililitr", f: 1e-6 },
+    { u: "l",       n: "litr", f: 1e-3 },
+    { u: "m³",      n: "metr sześcienny", f: 1 },
+    { u: "in³",     n: "cal sześcienny", f: 1.6387064e-5 },
+    { u: "ft³",     n: "stopa sześcienna", f: 0.028316846592 },
+    { u: "gal US",  n: "galon amerykański", f: 3.785411784e-3 },
+    { u: "gal UK",  n: "galon brytyjski", f: 4.54609e-3 },
+    { u: "bbl",     n: "baryłka ropy (42 gal US)", f: 0.158987294928 }
+  ];
+  var MASA = [
+    { u: "mg",  n: "miligram", f: 1e-6 },
+    { u: "g",   n: "gram", f: 1e-3 },
+    { u: "kg",  n: "kilogram", f: 1 },
+    { u: "t",   n: "tona (Mg)", f: 1000 },
+    { u: "lb",  n: "funt", f: 0.45359237 },
+    { u: "oz",  n: "uncja", f: 0.028349523125 },
+    { u: "sh tn", n: "tona amerykańska", f: 907.18474 },
+    { u: "lg tn", n: "tona brytyjska", f: 1016.0469088 }
+  ];
+  var PRZEP = [
+    { u: "m³/s",   n: "metr sześcienny na sekundę", f: 1 },
+    { u: "m³/min", n: "metr sześcienny na minutę", f: 1 / 60 },
+    { u: "m³/h",   n: "metr sześcienny na godzinę", f: 1 / 3600 },
+    { u: "m³/d",   n: "metr sześcienny na dobę", f: 1 / 86400 },
+    { u: "l/s",    n: "litr na sekundę", f: 1e-3 },
+    { u: "l/min",  n: "litr na minutę", f: 1e-3 / 60 },
+    { u: "l/h",    n: "litr na godzinę", f: 1e-3 / 3600 },
+    { u: "gpm",    n: "galon amerykański na minutę", f: 3.785411784e-3 / 60 },
+    { u: "cfm",    n: "stopa sześcienna na minutę", f: 0.028316846592 / 60 }
+  ];
+  var PRED = [
+    { u: "m/s",  n: "metr na sekundę", f: 1 },
+    { u: "km/h", n: "kilometr na godzinę", f: 1 / 3.6 },
+    { u: "mph",  n: "mila na godzinę", f: 0.44704 },
+    { u: "kn",   n: "węzeł", f: 1852 / 3600 },
+    { u: "ft/s", n: "stopa na sekundę", f: 0.3048 }
+  ];
+  var SILA = [
+    { u: "N",   n: "niuton", f: 1 },
+    { u: "daN", n: "dekaniuton", f: 10 },
+    { u: "kN",  n: "kiloniuton", f: 1e3 },
+    { u: "MN",  n: "meganiuton", f: 1e6 },
+    { u: "kgf", n: "kilogram-siła", f: 9.80665 },
+    { u: "lbf", n: "funt-siła", f: 4.4482216152605 }
+  ];
+
+  // Kolejność kategorii = kolejność domyślna (energia pierwsza).
+  var CATS = [
+    { id: "energia",  name: "Energia",      list: ENERGIA, info: "1 toe = 41,868 GJ, 1 tce = 29,3076 GJ, 1 kcal = 4,1868 kJ (wartości tablicowe IT)." },
+    { id: "moc",      name: "Moc",          list: MOC,     info: "KM to koń mechaniczny metryczny (735,49875 W), hp to brytyjski (745,7 W)." },
+    { id: "paliwa",   name: "Paliwa",       fuel: true },
+    { id: "temp",     name: "Temperatura",  list: TEMP,    info: "" },
+    { id: "cisn",     name: "Ciśnienie",    list: CISN,    info: "bar i kPa to ciśnienie bezwzględne lub nadciśnienie, zależnie od przypadku. Aplikacja przelicza tylko jednostki." },
+    { id: "przep",    name: "Przepływ",     list: PRZEP,   info: "Przepływ objętościowy. Dla gazów nie uwzględnia warunków normalnych (Nm³)." },
+    { id: "dlug",     name: "Długość",      list: DLUG,    info: "" },
+    { id: "pow",      name: "Powierzchnia", list: POW,     info: "" },
+    { id: "obj",      name: "Objętość",     list: OBJ,     info: "" },
+    { id: "masa",     name: "Masa",         list: MASA,    info: "" },
+    { id: "pred",     name: "Prędkość",     list: PRED,    info: "" },
+    { id: "sila",     name: "Siła",         list: SILA,    info: "" }
+  ];
+  function cat(id) { for (var i = 0; i < CATS.length; i++) if (CATS[i].id === id) return CATS[i]; return CATS[0]; }
+
+  // Wartości opałowe orientacyjne [MJ na jednostkę podstawową]. Użytkownik może je poprawić.
+  var PALIWA = [
+    { id: "gaz",    n: "Gaz ziemny (sieciowy)", base: "m³",    wo: 35, alt: { u: "tys. m³", m: 1000 } },
+    { id: "wkam",   n: "Węgiel kamienny",       base: "kg",    wo: 23, alt: { u: "t", m: 1000 } },
+    { id: "wbru",   n: "Węgiel brunatny",       base: "kg",    wo: 9,  alt: { u: "t", m: 1000 } },
+    { id: "koks",   n: "Koks",                  base: "kg",    wo: 28, alt: { u: "t", m: 1000 } },
+    { id: "olop",   n: "Olej opałowy lekki",    base: "l",     wo: 36, alt: { u: "m³", m: 1000 } },
+    { id: "on",     n: "Olej napędowy",         base: "l",     wo: 36, alt: { u: "m³", m: 1000 } },
+    { id: "benz",   n: "Benzyna",               base: "l",     wo: 32, alt: { u: "m³", m: 1000 } },
+    { id: "lpg",    n: "LPG (propan-butan)",    base: "kg",    wo: 46, alt: { u: "t", m: 1000 } },
+    { id: "drew",   n: "Drewno opałowe",        base: "kg",    wo: 15, alt: { u: "t", m: 1000 } },
+    { id: "pell",   n: "Pellet drzewny",        base: "kg",    wo: 17, alt: { u: "t", m: 1000 } },
+    { id: "wlasne", n: "Własne paliwo",         base: "jedn.", wo: 1,  alt: null }
+  ];
+  var WYNIK_PALIWA = ["MJ", "GJ", "kWh", "MWh", "toe", "tce"];
+
+  // ---- Stan i zapis lokalny ------------------------------------------------
+  var S = {
+    tab: "energia",
+    favCats: ["energia"],      // ulubione kategorie
+    favU: {},                  // ulubione jednostki: { kategoria: [symbole] }
+    onlyFav: {},               // { kategoria: true } = pokaż tylko ulubione jednostki
+    unit: { energia: "kWh", moc: "kW", temp: "°C", cisn: "bar", przep: "m³/h", dlug: "m", pow: "m²", obj: "l", masa: "kg", pred: "km/h", sila: "kN" },
+    val: {},
+    fuel: "gaz", fuelVal: "1", qUnit: {}, wo: {}
+  };
+  var KEY = "przelicznik-inzynierski-v1";
+  function load() {
+    try {
+      var x = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (x && typeof x === "object") {
+        for (var k in S) { if (x[k] !== undefined) S[k] = x[k]; }
+        // brakujące domyślne jednostki uzupełnij
+        if (!S.unit || typeof S.unit !== "object") S.unit = {};
+      }
+    } catch (e) {}
+    CATS.forEach(function (c) { if (c.list && !S.unit[c.id]) S.unit[c.id] = c.list[0].u; if (S.val[c.id] === undefined) S.val[c.id] = "1"; });
+    if (!cat(S.tab) || cat(S.tab).id !== S.tab) S.tab = "energia";
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  // ---- Pomocnicze ----------------------------------------------------------
+  var $ = function (id) { return document.getElementById(id); };
+  var nf = new Intl.NumberFormat("pl-PL", { maximumSignificantDigits: 7 });
+  function parse(s) {
+    var t = String(s).replace(/\s/g, "").replace(",", ".");
+    if (t === "" || t === "-" || t === ".") return NaN;
+    var n = Number(t);
+    return isFinite(n) ? n : NaN;
+  }
+  function fmt(x) {
+    if (!isFinite(x)) return "–";
+    if (x === 0) return "0";
+    var a = Math.abs(x);
+    if (a >= 1e15 || a < 1e-4) return x.toExponential(4).replace(".", ",").replace("e+", " × 10^").replace("e", " × 10^");
+    return nf.format(x);
+  }
+  function raw(x) { return String(Number(x.toPrecision(10))).replace(".", ","); }
+  function find(list, u) { for (var i = 0; i < list.length; i++) if (list[i].u === u) return list[i]; return list[0]; }
+  function toBase(e, x) { return e.to ? e.to(x) : x * e.f; }
+  function fromBase(e, b) { return e.from ? e.from(b) : b / e.f; }
+  function has(arr, v) { return Array.isArray(arr) && arr.indexOf(v) >= 0; }
+  function toggle(arr, v) { arr = Array.isArray(arr) ? arr.slice() : []; var i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); return arr; }
+  function fuelObj() { for (var i = 0; i < PALIWA.length; i++) if (PALIWA[i].id === S.fuel) return PALIWA[i]; return PALIWA[0]; }
+  function woOf(p) { var v = S.wo[p.id]; return (typeof v === "number" && v > 0) ? v : p.wo; }
+
+  var toastT;
+  function toast(msg) {
+    var t = $("toast"); t.textContent = msg; t.classList.add("on");
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("on"); }, 1400);
+  }
+  function copy(text) {
+    function fallback() {
+      var ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); toast("Skopiowano: " + text); } catch (e) { toast("Nie udało się skopiować"); }
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast("Skopiowano: " + text); }, fallback);
+    } else fallback();
+  }
+  function fillSelect(sel, items, current) {
+    sel.innerHTML = "";
+    items.forEach(function (it) {
+      var o = document.createElement("option"); o.value = it.v; o.textContent = it.t; sel.appendChild(o);
+    });
+    sel.value = current;
+  }
+
+  // ---- Widok ---------------------------------------------------------------
+  function chipOrder() {
+    var fav = CATS.filter(function (c) { return has(S.favCats, c.id); });
+    var rest = CATS.filter(function (c) { return !has(S.favCats, c.id); });
+    return fav.concat(rest);
+  }
+
+  function renderChips() {
+    var box = $("chips"); box.innerHTML = "";
+    chipOrder().forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("data-cat", c.id);
+      b.setAttribute("aria-selected", c.id === S.tab ? "true" : "false");
+      b.innerHTML = (has(S.favCats, c.id) ? '<span class="st" aria-hidden="true">★</span>' : "") + "";
+      b.appendChild(document.createTextNode(c.name));
+      b.addEventListener("click", function () { S.tab = c.id; save(); setupTab(); render(); });
+      box.appendChild(b);
+    });
+    var sel = box.querySelector('[aria-selected="true"]');
+    if (sel && sel.scrollIntoView) { try { sel.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch (e) {} }
+  }
+
+  function setupTab() {
+    var c = cat(S.tab), fuelMode = !!c.fuel;
+    renderChips();
+    $("fuelBlock").hidden = !fuelMode;
+    $("unitWrap").hidden = fuelMode;
+    $("mainInputs").className = fuelMode ? "inputs one" : "inputs";
+    var fav = has(S.favCats, c.id);
+    var fb = $("favCat");
+    fb.textContent = (fav ? "★ Ulubiona kategoria" : "☆ Dodaj kategorię do ulubionych");
+    fb.setAttribute("aria-pressed", fav ? "true" : "false");
+    if (fuelMode) {
+      fillSelect($("fuel"), PALIWA.map(function (p) { return { v: p.id, t: p.n }; }), S.fuel);
+      setupFuel();
+    } else {
+      fillSelect($("unit"), c.list.map(function (e) { return { v: e.u, t: e.u }; }), S.unit[c.id]);
+      $("val").value = S.val[c.id];
+      $("info").textContent = c.info || "";
+    }
+    updateOnlyFavBtn();
+  }
+
+  function updateOnlyFavBtn() {
+    var c = cat(S.tab), b = $("onlyFav");
+    var n = (S.favU[c.id] || []).length;
+    b.hidden = !c.list || n === 0;
+    var on = !!S.onlyFav[c.id] && n > 0;
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+
+  function setupFuel() {
+    var p = fuelObj();
+    var opts = [{ v: p.base, t: p.base }];
+    if (p.alt) opts.push({ v: p.alt.u, t: p.alt.u });
+    var cur = S.qUnit[p.id] || p.base;
+    if (cur !== p.base && !(p.alt && p.alt.u === cur)) cur = p.base;
+    fillSelect($("qunit"), opts, cur);
+    $("woLabel").textContent = "Wart. opałowa, MJ/" + p.base;
+    $("wo").value = raw(woOf(p));
+    $("val").value = S.fuelVal;
+    $("info").innerHTML = '<b>Wartości opałowe są orientacyjne.</b> Do rozliczeń wpisz wartość z faktury dostawcy, ze świadectwa jakości albo ze wskaźników KOBiZE. Poprawioną wartość aplikacja zapamięta na tym telefonie.';
+  }
+
+  function render() {
+    var c = cat(S.tab), ul = $("results"); ul.innerHTML = "";
+    var items = [], srcU = null, canStar = !c.fuel;
+    if (c.fuel) {
+      var p = fuelObj(), q = parse($("val").value);
+      var qu = $("qunit").value, mult = (p.alt && qu === p.alt.u) ? p.alt.m : 1;
+      var mj = q * mult * parse($("wo").value);
+      WYNIK_PALIWA.forEach(function (u) {
+        var e = find(ENERGIA, u);
+        items.push({ u: e.u, n: e.n, v: fromBase(e, mj * 1e6) });
+      });
+    } else {
+      var cur = find(c.list, S.unit[c.id]);
+      var base = toBase(cur, parse($("val").value));
+      srcU = cur.u;
+      var favs = S.favU[c.id] || [];
+      var onlyFav = !!S.onlyFav[c.id] && favs.length > 0;
+      var all = c.list.map(function (e) { return { u: e.u, n: e.n, v: fromBase(e, base), fav: has(favs, e.u) }; });
+      var top = all.filter(function (i) { return i.fav; }), rest = all.filter(function (i) { return !i.fav; });
+      items = onlyFav ? top.concat(rest.filter(function (i) { return i.u === srcU; })) : top.concat(rest);
+    }
+    items.forEach(function (it) {
+      var li = document.createElement("li");
+      li.className = (it.u === srcU ? "src " : "") + (canStar ? "" : "nostar");
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "pick";
+      b.innerHTML = '<span class="u"></span><span class="v"></span><span class="n"></span>';
+      b.children[0].textContent = it.u; b.children[1].textContent = fmt(it.v); b.children[2].textContent = it.n;
+      if (canStar) {
+        b.setAttribute("aria-label", "Ustaw " + it.u + " jako jednostkę wejściową");
+        b.addEventListener("click", function () {
+          if (!isFinite(it.v)) return;
+          S.unit[c.id] = it.u; S.val[c.id] = raw(it.v); $("unit").value = it.u; $("val").value = S.val[c.id];
+          save(); render();
+        });
+      } else {
+        b.addEventListener("click", function () { if (isFinite(it.v)) copy(raw(it.v)); });
+      }
+      li.appendChild(b);
+      if (canStar) {
+        var s = document.createElement("button");
+        s.type = "button"; s.className = "sq" + (it.fav ? " fav" : "");
+        s.textContent = it.fav ? "★" : "☆";
+        s.setAttribute("aria-label", (it.fav ? "Usuń z ulubionych: " : "Dodaj do ulubionych: ") + it.u);
+        s.setAttribute("aria-pressed", it.fav ? "true" : "false");
+        s.addEventListener("click", function () {
+          S.favU[c.id] = toggle(S.favU[c.id], it.u);
+          if (!S.favU[c.id].length) S.onlyFav[c.id] = false;
+          save(); updateOnlyFavBtn(); render();
+        });
+        li.appendChild(s);
+      }
+      var k = document.createElement("button");
+      k.type = "button"; k.className = "sq"; k.textContent = "⧉"; k.setAttribute("aria-label", "Kopiuj " + it.u);
+      k.addEventListener("click", function () { if (isFinite(it.v)) copy(raw(it.v)); });
+      li.appendChild(k);
+      ul.appendChild(li);
+    });
+  }
+
+  // ---- Zdarzenia -----------------------------------------------------------
+  $("favCat").addEventListener("click", function () {
+    S.favCats = toggle(S.favCats, S.tab); save(); setupTab();
+  });
+  $("onlyFav").addEventListener("click", function () {
+    S.onlyFav[S.tab] = !S.onlyFav[S.tab]; save(); updateOnlyFavBtn(); render();
+  });
+  $("val").addEventListener("input", function () {
+    var c = cat(S.tab);
+    if (c.fuel) S.fuelVal = $("val").value; else S.val[c.id] = $("val").value;
+    save(); render();
+  });
+  $("unit").addEventListener("change", function () { S.unit[S.tab] = $("unit").value; save(); render(); });
+  $("fuel").addEventListener("change", function () { S.fuel = $("fuel").value; save(); setupFuel(); render(); });
+  $("qunit").addEventListener("change", function () { S.qUnit[S.fuel] = $("qunit").value; save(); render(); });
+  $("wo").addEventListener("input", function () {
+    var v = parse($("wo").value);
+    if (isFinite(v) && v > 0) { S.wo[S.fuel] = v; save(); }
+    render();
+  });
+
+  // ---- Start ---------------------------------------------------------------
+  load(); setupTab(); render();
+
+  var online = function () { $("status").textContent = navigator.onLine ? "" : "tryb offline"; };
+  window.addEventListener("online", online); window.addEventListener("offline", online); online();
+
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>
