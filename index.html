@@ -236,6 +236,19 @@
     { u: "sh tn", n: "tona amerykańska", f: 907.18474 },
     { u: "lg tn", n: "tona brytyjska", f: 1016.0469088 }
   ];
+  var GEST = [
+    { u: "kg/m³",   n: "kilogram na metr sześcienny", f: 1 },
+    { u: "g/cm³",   n: "gram na centymetr sześcienny", f: 1000 },
+    { u: "g/ml",    n: "gram na mililitr", f: 1000 },
+    { u: "kg/l",    n: "kilogram na litr", f: 1000 },
+    { u: "t/m³",    n: "tona na metr sześcienny", f: 1000 },
+    { u: "g/l",     n: "gram na litr", f: 1 },
+    { u: "mg/l",    n: "miligram na litr", f: 1e-3 },
+    { u: "lb/ft³",  n: "funt na stopę sześcienną", f: 16.01846337 },
+    { u: "lb/in³",  n: "funt na cal sześcienny", f: 27679.9047 },
+    { u: "lb/gal US", n: "funt na galon amerykański", f: 119.826427 },
+    { u: "lb/gal UK", n: "funt na galon brytyjski", f: 99.7763 }
+  ];
   var PRZEP = [
     { u: "m³/s",   n: "metr sześcienny na sekundę", f: 1 },
     { u: "m³/min", n: "metr sześcienny na minutę", f: 1 / 60 },
@@ -275,6 +288,7 @@
     { id: "pow",      name: "Powierzchnia", list: POW,     info: "" },
     { id: "obj",      name: "Objętość",     list: OBJ,     info: "" },
     { id: "masa",     name: "Masa",         list: MASA,    info: "" },
+    { id: "gest",     name: "Gęstość",      list: GEST,    info: "Gęstość wody w 4 °C to ok. 1000 kg/m³ (1 g/cm³ = 1 kg/l = 1 t/m³). Gęstość paliw i materiałów zależy od temperatury." },
     { id: "pred",     name: "Prędkość",     list: PRED,    info: "" },
     { id: "sila",     name: "Siła",         list: SILA,    info: "" }
   ];
@@ -302,7 +316,7 @@
     favCats: ["energia"],      // ulubione kategorie
     favU: {},                  // ulubione jednostki: { kategoria: [symbole] }
     onlyFav: {},               // { kategoria: true } = pokaż tylko ulubione jednostki
-    unit: { energia: "kWh", moc: "kW", temp: "°C", cisn: "bar", przep: "m³/h", dlug: "m", pow: "m²", obj: "l", masa: "kg", pred: "km/h", sila: "kN" },
+    unit: { energia: "kWh", moc: "kW", temp: "°C", cisn: "bar", przep: "m³/h", dlug: "m", pow: "m²", obj: "l", masa: "kg", gest: "kg/m³", pred: "km/h", sila: "kN" },
     val: {},
     fuel: "gaz", fuelVal: "1", qUnit: {}, wo: {}
   };
