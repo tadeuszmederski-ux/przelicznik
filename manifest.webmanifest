@@ -1,32 +1,16 @@
 {
- "name": "Inwentaryzacja energetyczna",
- "short_name": "Inwentaryzacja",
- "description": "Zbieranie danych w terenie – dane tylko na urządzeniu",
- "lang": "pl",
- "start_url": "./",
- "scope": "./",
- "display": "standalone",
- "orientation": "any",
- "background_color": "#ffffff",
- "theme_color": "#0b3d91",
- "icons": [
-  {
-   "src": "ikona-192.png",
-   "sizes": "192x192",
-   "type": "image/png",
-   "purpose": "any"
-  },
-  {
-   "src": "ikona-512.png",
-   "sizes": "512x512",
-   "type": "image/png",
-   "purpose": "any"
-  },
-  {
-   "src": "ikona-maskable-512.png",
-   "sizes": "512x512",
-   "type": "image/png",
-   "purpose": "maskable"
-  }
- ]
+  "name": "Przelicznik inżynierski",
+  "short_name": "Przelicznik",
+  "description": "Przeliczanie jednostek energii, mocy, paliw i innych wielkości inżynierskich. Działa offline.",
+  "lang": "pl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d171c",
+  "theme_color": "#0b5d63",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }
