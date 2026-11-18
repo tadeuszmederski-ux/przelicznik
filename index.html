@@ -90,6 +90,26 @@
            opacity: 0; pointer-events: none; transition: opacity .15s; max-width: 90vw; text-align: center; }
   .toast.on { opacity: 1; }
   @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+  /* Kalkulator */
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .seg button { flex: 1 1 0; font: inherit; font-size: .9rem; font-weight: 600; color: var(--ink); background: var(--field);
+                border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  #kexpr { text-align: right; }
+  .kres { display: block; width: 100%; text-align: right; background: transparent; border: 0; color: var(--muted);
+          font: inherit; font-size: 1.3rem; font-variant-numeric: tabular-nums; padding: 8px 4px; min-height: 2.6rem;
+          overflow-wrap: anywhere; cursor: pointer; }
+  .keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+  .keys button { font: inherit; font-size: 1.2rem; font-weight: 600; padding: 13px 0; min-height: 52px; border-radius: 10px;
+                 border: 1px solid var(--line); background: var(--field); color: var(--ink); cursor: pointer; touch-action: manipulation; }
+  .keys button.op { color: var(--accent); }
+  .keys button.fn { background: var(--surface); color: var(--muted); }
+  .keys button.sci { font-size: .95rem; background: var(--surface); }
+  .keys button.eq { grid-column: 1 / -1; background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .keys button:active { filter: brightness(.92); }
+  .hist { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .hist button { width: 100%; text-align: left; font: inherit; font-size: .85rem; color: var(--muted); background: transparent;
+                 border: 0; padding: 6px 4px; cursor: pointer; overflow-wrap: anywhere; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -107,7 +127,7 @@
     <button type="button" class="tog" id="onlyFav" aria-pressed="false" hidden>Tylko ulubione jednostki</button>
   </div>
 
-  <section class="card">
+  <section class="card" id="convCard">
     <div id="fuelBlock" hidden>
       <label for="fuel">Paliwo</label>
       <select id="fuel"></select>
@@ -136,6 +156,18 @@
   </section>
 
   <ul class="res" id="results" aria-live="polite"></ul>
+
+  <section class="card" id="calcBlock" hidden>
+    <div class="seg" role="group" aria-label="Rodzaj kalkulatora">
+      <button type="button" id="kmZ" aria-pressed="true">Zwykły</button>
+      <button type="button" id="kmN" aria-pressed="false">Naukowy</button>
+      <button type="button" id="kAngle" hidden>DEG</button>
+    </div>
+    <input id="kexpr" class="big" inputmode="none" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="0" aria-label="Wyrażenie">
+    <button type="button" class="kres" id="kres" aria-label="Wynik. Stuknij, aby skopiować.">0</button>
+    <div class="keys" id="keys"></div>
+    <ul class="hist" id="khist" aria-label="Ostatnie obliczenia"></ul>
+  </section>
   <p class="note" id="info"></p>
 </main>
 <div class="toast" id="toast" role="status"></div>
@@ -281,6 +313,7 @@
     { id: "energia",  name: "Energia",      list: ENERGIA, info: "1 toe = 41,868 GJ, 1 tce = 29,3076 GJ, 1 kcal = 4,1868 kJ (wartości tablicowe IT)." },
     { id: "moc",      name: "Moc",          list: MOC,     info: "KM to koń mechaniczny metryczny (735,49875 W), hp to brytyjski (745,7 W)." },
     { id: "paliwa",   name: "Paliwa",       fuel: true },
+    { id: "kalk", name: "Kalkulator", calc: true, info: "Wyniki są zaokrąglane do 12 cyfr. Procent: x% = x/100. Funkcje kątowe liczą według wybranego DEG (stopnie) lub RAD (radiany). Ans to ostatni wynik. Brakujące nawiasy na końcu są domykane." },
     { id: "temp",     name: "Temperatura",  list: TEMP,    info: "" },
     { id: "cisn",     name: "Ciśnienie",    list: CISN,    info: "bar i kPa to ciśnienie bezwzględne lub nadciśnienie, zależnie od przypadku. Aplikacja przelicza tylko jednostki." },
     { id: "przep",    name: "Przepływ",     list: PRZEP,   info: "Przepływ objętościowy. Dla gazów nie uwzględnia warunków normalnych (Nm³)." },
@@ -318,7 +351,8 @@
     onlyFav: {},               // { kategoria: true } = pokaż tylko ulubione jednostki
     unit: { energia: "kWh", moc: "kW", temp: "°C", cisn: "bar", przep: "m³/h", dlug: "m", pow: "m²", obj: "l", masa: "kg", gest: "kg/m³", pred: "km/h", sila: "kN" },
     val: {},
-    fuel: "gaz", fuelVal: "1", qUnit: {}, wo: {}
+    fuel: "gaz", fuelVal: "1", qUnit: {}, wo: {},
+    calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0
   };
   var KEY = "przelicznik-inzynierski-v1";
   function load() {
@@ -416,6 +450,9 @@
     var fb = $("favCat");
     fb.textContent = (fav ? "★ Ulubiona kategoria" : "☆ Dodaj kategorię do ulubionych");
     fb.setAttribute("aria-pressed", fav ? "true" : "false");
+    var calcTab = !!c.calc;
+    $("convCard").hidden = calcTab; $("results").hidden = calcTab; $("calcBlock").hidden = !calcTab;
+    if (calcTab) { setupCalc(); $("info").textContent = c.info || ""; updateOnlyFavBtn(); return; }
     if (fuelMode) {
       fillSelect($("fuel"), PALIWA.map(function (p) { return { v: p.id, t: p.n }; }), S.fuel);
       setupFuel();
@@ -449,7 +486,7 @@
   }
 
   function render() {
-    var c = cat(S.tab), ul = $("results"); ul.innerHTML = "";
+    var c = cat(S.tab), ul = $("results"); if (c.calc) return; ul.innerHTML = "";
     var items = [], srcU = null, canStar = !c.fuel;
     if (c.fuel) {
       var p = fuelObj(), q = parse($("val").value);
@@ -508,6 +545,203 @@
     });
   }
 
+  // ---- Kalkulator ----------------------------------------------------------
+  // Klawisze: [etykieta, wstawiany tekst lub akcja @..., klasa]
+  var K_STD = [
+    ["C", "@clear", "fn"], ["⌫", "@back", "fn"], ["(", "(", "fn"], [")", ")", "fn"],
+    ["7", "7"], ["8", "8"], ["9", "9"], ["÷", "÷", "op"],
+    ["4", "4"], ["5", "5"], ["6", "6"], ["×", "×", "op"],
+    ["1", "1"], ["2", "2"], ["3", "3"], ["−", "−", "op"],
+    ["0", "0"], [",", ","], ["%", "%", "fn"], ["+", "+", "op"]
+  ];
+  var K_SCI = [
+    ["sin", "sin(", "sci"], ["cos", "cos(", "sci"], ["tan", "tan(", "sci"], ["π", "π", "sci"],
+    ["sin⁻¹", "asin(", "sci"], ["cos⁻¹", "acos(", "sci"], ["tan⁻¹", "atan(", "sci"], ["e", "e", "sci"],
+    ["ln", "ln(", "sci"], ["log", "log(", "sci"], ["√", "√(", "sci"], ["eˣ", "exp(", "sci"],
+    ["x²", "^2", "sci"], ["xʸ", "^", "sci"], ["x!", "!", "sci"], ["Ans", "Ans", "sci"]
+  ];
+  var justEq = false, lastOk = null;
+
+  function cclean(v) { return Math.abs(v) < 1e-14 ? 0 : v; }
+  function cfact(n) {
+    if (n < 0 || n > 170 || Math.floor(n) !== n) return NaN;
+    var r = 1; for (var i = 2; i <= n; i++) r *= i; return r;
+  }
+  function cfmt(x) { return String(x).replace(".", ",").replace("e", "E"); }
+
+  // Własny parser wyrażeń (bez eval). Zwraca liczbę albo zgłasza wyjątek.
+  function calcEval(src, deg, ans) {
+    var s = String(src).replace(/\s+/g, "").replace(/[×·]/g, "*").replace(/÷/g, "/").replace(/[−–]/g, "-")
+              .replace(/,/g, ".").replace(/π/g, "pi").replace(/√/g, "sqrt");
+    var toks = [], i = 0, m;
+    while (i < s.length) {
+      var rest = s.slice(i);
+      if ((m = /^(?:\d+\.?\d*|\.\d+)(?:E[+-]?\d+)?/.exec(rest))) { toks.push({ t: "n", v: parseFloat(m[0]) }); i += m[0].length; }
+      else if ((m = /^[A-Za-z]+/.exec(rest))) { toks.push({ t: "id", v: m[0].toLowerCase() }); i += m[0].length; }
+      else if ("+-*/^!%()".indexOf(rest.charAt(0)) >= 0) { toks.push({ t: "op", v: rest.charAt(0) }); i++; }
+      else throw new Error("znak");
+    }
+    if (!toks.length) throw new Error("puste");
+    var p = 0;
+    var rad = function (x) { return deg ? x * Math.PI / 180 : x; };
+    var ang = function (x) { return deg ? x * 180 / Math.PI : x; };
+    var FN = {
+      sin: function (x) { return cclean(Math.sin(rad(x))); },
+      cos: function (x) { return cclean(Math.cos(rad(x))); },
+      tan: function (x) { if (deg && (x - 90) % 180 === 0) return NaN; return cclean(Math.tan(rad(x))); },
+      asin: function (x) { return ang(Math.asin(x)); },
+      acos: function (x) { return ang(Math.acos(x)); },
+      atan: function (x) { return ang(Math.atan(x)); },
+      ln: function (x) { return Math.log(x); },
+      log: function (x) { return Math.log10(x); },
+      sqrt: function (x) { return Math.sqrt(x); },
+      exp: function (x) { return Math.exp(x); },
+      abs: function (x) { return Math.abs(x); }
+    };
+    var CONST = { pi: Math.PI, e: Math.E, ans: ans };
+    function isOp(v) { var t = toks[p]; return !!t && t.t === "op" && t.v === v; }
+    function closeParen() { if (p >= toks.length) return; if (isOp(")")) { p++; return; } throw new Error("nawias"); }
+    function startsPrimary() { var t = toks[p]; return !!t && (t.t === "id" || (t.t === "op" && t.v === "(")); }
+    function primary() {
+      var t = toks[p++];
+      if (!t) throw new Error("koniec");
+      if (t.t === "n") return t.v;
+      if (t.t === "op" && t.v === "(") { var v = expr(); closeParen(); return v; }
+      if (t.t === "id") {
+        if (Object.prototype.hasOwnProperty.call(CONST, t.v)) return CONST[t.v];
+        if (Object.prototype.hasOwnProperty.call(FN, t.v)) {
+          if (!isOp("(")) throw new Error("funkcja");
+          p++; var a = expr(); closeParen(); return FN[t.v](a);
+        }
+      }
+      throw new Error("token");
+    }
+    function postfix() {
+      var v = primary();
+      for (;;) {
+        if (isOp("!")) { p++; v = cfact(v); }
+        else if (isOp("%")) { p++; v = v / 100; }
+        else break;
+      }
+      return v;
+    }
+    function power() { var b = postfix(); if (isOp("^")) { p++; return Math.pow(b, unary()); } return b; }
+    function unary() {
+      if (isOp("-")) { p++; return -unary(); }
+      if (isOp("+")) { p++; return unary(); }
+      return power();
+    }
+    function term() {
+      var v = unary();
+      for (;;) {
+        if (isOp("*")) { p++; v = v * unary(); }
+        else if (isOp("/")) { p++; v = v / unary(); }
+        else if (startsPrimary()) { v = v * unary(); }
+        else break;
+      }
+      return v;
+    }
+    function expr() {
+      var v = term();
+      while (isOp("+") || isOp("-")) { var o = toks[p++].v; var r = term(); v = (o === "+") ? v + r : v - r; }
+      return v;
+    }
+    var out = expr();
+    if (p < toks.length) throw new Error("reszta");
+    if (typeof out !== "number" || !isFinite(out)) throw new Error("wynik");
+    return Number(out.toPrecision(12));
+  }
+
+  function calcPreview() {
+    var v = $("kexpr").value, r = $("kres");
+    lastOk = null;
+    if (v.trim() === "") { r.textContent = "0"; return; }
+    try { var x = calcEval(v, S.angle !== "rad", S.ans); lastOk = x; r.textContent = "= " + cfmt(x); }
+    catch (e) { r.textContent = "–"; }
+  }
+  function kChanged() { justEq = false; S.calcExpr = $("kexpr").value; save(); calcPreview(); }
+
+  function kInsert(txt) {
+    var el = $("kexpr");
+    if (justEq && !/^[+\-−×÷^!%]/.test(txt)) { el.value = ""; el.setSelectionRange(0, 0); }
+    var a = el.selectionStart, b = el.selectionEnd;
+    if (a == null) { a = b = el.value.length; }
+    el.value = el.value.slice(0, a) + txt + el.value.slice(b);
+    var c = a + txt.length; el.setSelectionRange(c, c);
+    kChanged();
+  }
+  function kBack() {
+    var el = $("kexpr"), a = el.selectionStart, b = el.selectionEnd;
+    if (a == null) { a = b = el.value.length; }
+    if (a === b) {
+      var m = /(?:a?sin|a?cos|a?tan|ln|log|exp|√|Ans)\(?$/i.exec(el.value.slice(0, a));
+      a -= m ? m[0].length : (a > 0 ? 1 : 0);
+    }
+    el.value = el.value.slice(0, a) + el.value.slice(b);
+    el.setSelectionRange(a, a);
+    kChanged();
+  }
+  function kEq() {
+    var el = $("kexpr"), v = el.value;
+    if (v.trim() === "") return;
+    try {
+      var x = calcEval(v, S.angle !== "rad", S.ans), t = cfmt(x);
+      S.ans = x;
+      S.calcHist = [{ e: v, r: t }].concat(S.calcHist || []).slice(0, 6);
+      el.value = t; el.setSelectionRange(t.length, t.length);
+      S.calcExpr = t; save();
+      justEq = true; calcPreview(); renderHist();
+    } catch (e) { $("kres").textContent = "Błąd w wyrażeniu"; toast("Błąd w wyrażeniu"); }
+  }
+  function renderHist() {
+    var ul = $("khist"); ul.innerHTML = "";
+    (S.calcHist || []).forEach(function (h) {
+      var li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.textContent = h.e + " = " + h.r;
+      b.addEventListener("click", function () {
+        var el = $("kexpr"); el.value = h.r; el.setSelectionRange(h.r.length, h.r.length);
+        kChanged(); justEq = true;
+      });
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  function setupCalc() {
+    var sci = S.calcMode === "naukowy";
+    $("kmZ").setAttribute("aria-pressed", sci ? "false" : "true");
+    $("kmN").setAttribute("aria-pressed", sci ? "true" : "false");
+    var ab = $("kAngle"); ab.hidden = !sci; ab.textContent = S.angle === "rad" ? "RAD" : "DEG";
+    ab.setAttribute("aria-label", "Kąty w " + (S.angle === "rad" ? "radianach" : "stopniach") + ". Stuknij, aby zmienić.");
+    var box = $("keys"); box.innerHTML = "";
+    (sci ? K_SCI : []).concat(K_STD).forEach(function (k) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = k[0]; b.setAttribute("data-k", k[1]);
+      if (k[2]) b.className = k[2];
+      box.appendChild(b);
+    });
+    var eq = document.createElement("button");
+    eq.type = "button"; eq.textContent = "="; eq.className = "eq"; eq.setAttribute("data-k", "@eq");
+    box.appendChild(eq);
+    $("kexpr").value = S.calcExpr || "";
+    justEq = false; calcPreview(); renderHist();
+  }
+  function initCalc() {
+    $("keys").addEventListener("click", function (ev) {
+      var b = ev.target.closest ? ev.target.closest("button[data-k]") : null;
+      if (!b) return;
+      var k = b.getAttribute("data-k");
+      if (k === "@clear") { $("kexpr").value = ""; kChanged(); }
+      else if (k === "@back") kBack();
+      else if (k === "@eq") kEq();
+      else kInsert(k);
+    });
+    $("kmZ").addEventListener("click", function () { S.calcMode = "zwykly"; save(); setupCalc(); });
+    $("kmN").addEventListener("click", function () { S.calcMode = "naukowy"; save(); setupCalc(); });
+    $("kAngle").addEventListener("click", function () { S.angle = S.angle === "rad" ? "deg" : "rad"; save(); setupCalc(); });
+    $("kexpr").addEventListener("input", kChanged);
+    $("kexpr").addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); kEq(); } });
+    $("kres").addEventListener("click", function () { if (lastOk !== null) copy(cfmt(lastOk)); });
+  }
+
   // ---- Zdarzenia -----------------------------------------------------------
   $("favCat").addEventListener("click", function () {
     S.favCats = toggle(S.favCats, S.tab); save(); setupTab();
@@ -530,7 +764,7 @@
   });
 
   // ---- Start ---------------------------------------------------------------
-  load(); setupTab(); render();
+  load(); initCalc(); setupTab(); render();
 
   var online = function () { $("status").textContent = navigator.onLine ? "" : "tryb offline"; };
   window.addEventListener("online", online); window.addEventListener("offline", online); online();
