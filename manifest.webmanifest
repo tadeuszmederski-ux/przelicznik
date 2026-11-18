@@ -1,7 +1,7 @@
 {
-  "name": "Przelicznik inżynierski",
-  "short_name": "Przelicznik",
-  "description": "Przeliczanie jednostek energii, mocy, paliw i innych wielkości inżynierskich. Działa offline.",
+  "name": "Calkó-lus",
+  "short_name": "Calkó-lus",
+  "description": "Przeliczanie jednostek energii, mocy, paliw i innych wielkości inżynierskich oraz kalkulator zwykły i naukowy. Działa offline.",
   "lang": "pl",
   "start_url": "./index.html",
   "scope": "./",

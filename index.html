@@ -7,7 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Przelicznik inżynierski</title>
+<title>Calkó-lus</title>
 <style>
   /* Układ: pasek kategorii (ulubione na początku), pole wejściowe, lista wszystkich jednostek do stuknięcia. */
   :root {
@@ -42,7 +42,11 @@
     min-height: 100vh;
   }
   main { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .modes { display: flex; gap: 4px; padding: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .modes button { font: inherit; font-size: .9rem; font-weight: 600; color: var(--muted); background: transparent; border: 0;
+                  border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
   h1 { font-size: 1.25rem; margin: 0; letter-spacing: .01em; }
   .sub { color: var(--muted); font-size: .8rem; }
 
@@ -116,13 +120,16 @@
 <body>
 <main>
   <header>
-    <h1>Przelicznik inżynierski</h1>
-    <span class="sub" id="status"></span>
+    <h1>Calkó-lus <span class="sub" id="status"></span></h1>
+    <div class="modes" role="group" aria-label="Tryb aplikacji">
+      <button type="button" id="mJedn" aria-pressed="true">Jednostki</button>
+      <button type="button" id="mKalk" aria-pressed="false">Kalkulator</button>
+    </div>
   </header>
 
   <div class="chips" id="chips" role="tablist" aria-label="Kategoria przeliczenia"></div>
 
-  <div class="bar">
+  <div class="bar" id="barRow">
     <button type="button" class="tog" id="favCat" aria-pressed="false"></button>
     <button type="button" class="tog" id="onlyFav" aria-pressed="false" hidden>Tylko ulubione jednostki</button>
   </div>
@@ -352,7 +359,7 @@
     unit: { energia: "kWh", moc: "kW", temp: "°C", cisn: "bar", przep: "m³/h", dlug: "m", pow: "m²", obj: "l", masa: "kg", gest: "kg/m³", pred: "km/h", sila: "kN" },
     val: {},
     fuel: "gaz", fuelVal: "1", qUnit: {}, wo: {},
-    calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0
+    calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0, lastTab: "energia"
   };
   var KEY = "przelicznik-inzynierski-v1";
   function load() {
@@ -420,8 +427,8 @@
 
   // ---- Widok ---------------------------------------------------------------
   function chipOrder() {
-    var fav = CATS.filter(function (c) { return has(S.favCats, c.id); });
-    var rest = CATS.filter(function (c) { return !has(S.favCats, c.id); });
+    var fav = CATS.filter(function (c) { return !c.calc && has(S.favCats, c.id); });
+    var rest = CATS.filter(function (c) { return !c.calc && !has(S.favCats, c.id); });
     return fav.concat(rest);
   }
 
@@ -451,8 +458,12 @@
     fb.textContent = (fav ? "★ Ulubiona kategoria" : "☆ Dodaj kategorię do ulubionych");
     fb.setAttribute("aria-pressed", fav ? "true" : "false");
     var calcTab = !!c.calc;
+    $("mJedn").setAttribute("aria-pressed", calcTab ? "false" : "true");
+    $("mKalk").setAttribute("aria-pressed", calcTab ? "true" : "false");
+    $("chips").hidden = calcTab; $("barRow").hidden = calcTab;
     $("convCard").hidden = calcTab; $("results").hidden = calcTab; $("calcBlock").hidden = !calcTab;
     if (calcTab) { setupCalc(); $("info").textContent = c.info || ""; updateOnlyFavBtn(); return; }
+    S.lastTab = c.id;
     if (fuelMode) {
       fillSelect($("fuel"), PALIWA.map(function (p) { return { v: p.id, t: p.n }; }), S.fuel);
       setupFuel();
@@ -737,6 +748,15 @@
     $("kmZ").addEventListener("click", function () { S.calcMode = "zwykly"; save(); setupCalc(); });
     $("kmN").addEventListener("click", function () { S.calcMode = "naukowy"; save(); setupCalc(); });
     $("kAngle").addEventListener("click", function () { S.angle = S.angle === "rad" ? "deg" : "rad"; save(); setupCalc(); });
+    $("mKalk").addEventListener("click", function () {
+      if (S.tab === "kalk") return;
+      S.tab = "kalk"; save(); setupTab(); render();
+    });
+    $("mJedn").addEventListener("click", function () {
+      if (S.tab !== "kalk") return;
+      var t = cat(S.lastTab);
+      S.tab = (t.id === S.lastTab && !t.calc) ? t.id : "energia"; save(); setupTab(); render();
+    });
     $("kexpr").addEventListener("input", kChanged);
     $("kexpr").addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); kEq(); } });
     $("kres").addEventListener("click", function () { if (lastOk !== null) copy(cfmt(lastOk)); });
