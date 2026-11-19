@@ -43,10 +43,7 @@
   }
   main { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .modes { flex: 1 1 15rem; display: flex; gap: 4px; padding: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
-  .modes button { font: inherit; font-size: .9rem; font-weight: 600; color: var(--muted); background: transparent; border: 0;
-                  border-radius: 8px; padding: 7px 8px; cursor: pointer; flex: 1 1 0; }
-  .modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .segsel { flex: 1 1 14rem; min-width: 0; font-weight: 600; background: var(--surface); }
   h1 { font-size: 1.25rem; margin: 0; letter-spacing: .01em; }
   .sub { color: var(--muted); font-size: .8rem; }
 
@@ -115,7 +112,12 @@
   .hist button { width: 100%; text-align: left; font: inherit; font-size: .85rem; color: var(--muted); background: transparent;
                  border: 0; padding: 6px 4px; cursor: pointer; overflow-wrap: anywhere; }
   /* Figury i bryły */
-  #shapeWrap { display: flex; flex-direction: column; gap: 12px; }
+  #shapeWrap, #fgazWrap, #fuelWrap { display: flex; flex-direction: column; gap: 12px; }
+  .chk { display: flex; align-items: center; gap: 10px; margin-top: 12px; margin-bottom: 0; text-transform: none; letter-spacing: 0;
+         font-size: .9rem; color: var(--ink); cursor: pointer; }
+  .chk input { width: 22px; height: 22px; padding: 0; flex: 0 0 auto; }
+  .h2 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 0; }
+  .fu-list li button .v { font-size: 1rem; }
   .sh-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
   .sr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   .sr-list li button { width: 100%; text-align: left; display: grid; gap: 2px; font: inherit; color: var(--ink);
@@ -131,11 +133,13 @@
 <main>
   <header>
     <h1>Calkó-lus <span class="sub" id="status"></span></h1>
-    <div class="modes" role="group" aria-label="Tryb aplikacji">
-      <button type="button" id="mJedn" aria-pressed="true">Jednostki</button>
-      <button type="button" id="mKalk" aria-pressed="false">Kalkulator</button>
-      <button type="button" id="mBryl" aria-pressed="false">Bryły</button>
-    </div>
+    <select id="segSel" class="segsel" aria-label="Segment aplikacji">
+      <option value="jedn">Jednostki</option>
+      <option value="kalk">Kalkulator</option>
+      <option value="bryly">Figury i bryły</option>
+      <option value="fgaz">F-gazy (CO₂e)</option>
+      <option value="paliwa">Paliwa (WO i gęstość)</option>
+    </select>
   </header>
 
   <div class="chips" id="chips" role="tablist" aria-label="Kategoria przeliczenia"></div>
@@ -146,21 +150,6 @@
   </div>
 
   <section class="card" id="convCard">
-    <div id="fuelBlock" hidden>
-      <label for="fuel">Paliwo</label>
-      <select id="fuel"></select>
-      <div class="row2">
-        <div>
-          <label for="wo" id="woLabel">Wartość opałowa</label>
-          <input id="wo" inputmode="decimal" autocomplete="off">
-        </div>
-        <div>
-          <label for="qunit">Jednostka ilości</label>
-          <select id="qunit"></select>
-        </div>
-      </div>
-      <div style="height:10px"></div>
-    </div>
     <div class="inputs" id="mainInputs">
       <div>
         <label for="val">Wartość</label>
@@ -205,6 +194,49 @@
     </section>
     <ul class="sr-list" id="shResults" aria-live="polite"></ul>
     <p class="note" id="shNote"></p>
+  </div>
+
+  <div id="fgazWrap" hidden>
+    <section class="card">
+      <label for="fgSet">Zestaw wartości GWP (horyzont 100 lat)</label>
+      <select id="fgSet"></select>
+      <div style="height:10px"></div>
+      <label for="fg">Czynnik chłodniczy lub gaz</label>
+      <select id="fg"></select>
+      <div id="fgOwnBox" hidden>
+        <div style="height:10px"></div>
+        <label for="fgOwn">Własny GWP</label>
+        <input id="fgOwn" inputmode="decimal" autocomplete="off" placeholder="np. 2088">
+      </div>
+      <div class="row2">
+        <div><label for="fgQ">Ilość czynnika</label><input id="fgQ" class="big" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+        <div><label for="fgU">Jednostka</label><select id="fgU"></select></div>
+      </div>
+      <label class="chk" for="fgHerm"><input type="checkbox" id="fgHerm"> Urządzenie hermetycznie zamknięte</label>
+    </section>
+    <ul class="sr-list" id="fgRes" aria-live="polite"></ul>
+    <p class="note" id="fgNote"></p>
+  </div>
+
+  <div id="fuelWrap" hidden>
+    <section class="card">
+      <label for="fu">Paliwo</label>
+      <select id="fu"></select>
+      <div class="row2">
+        <div><label for="fuQ">Ilość</label><input id="fuQ" class="big" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+        <div><label for="fuU">Jednostka</label><select id="fuU"></select></div>
+      </div>
+      <div class="row2">
+        <div><label for="fuWo" id="fuWoL">Wartość opałowa</label><input id="fuWo" inputmode="decimal" autocomplete="off"></div>
+        <div><label for="fuRho" id="fuRhoL">Gęstość</label><input id="fuRho" inputmode="decimal" autocomplete="off"></div>
+      </div>
+      <div style="height:10px"></div>
+      <button type="button" class="tog" id="fuReset" hidden>Przywróć wartości domyślne</button>
+    </section>
+    <ul class="sr-list" id="fuRes" aria-live="polite"></ul>
+    <p class="note" id="fuNote"></p>
+    <h2 class="h2">Zestawienie paliw (stuknij, aby wybrać)</h2>
+    <ul class="sr-list fu-list" id="fuTab"></ul>
   </div>
 
   <p class="note" id="info"></p>
@@ -351,9 +383,10 @@
   var CATS = [
     { id: "energia",  name: "Energia",      list: ENERGIA, info: "1 toe = 41,868 GJ, 1 tce = 29,3076 GJ, 1 kcal = 4,1868 kJ (wartości tablicowe IT)." },
     { id: "moc",      name: "Moc",          list: MOC,     info: "KM to koń mechaniczny metryczny (735,49875 W), hp to brytyjski (745,7 W)." },
-    { id: "paliwa",   name: "Paliwa",       fuel: true },
-    { id: "kalk", name: "Kalkulator", calc: true, info: "Wyniki są zaokrąglane do 12 cyfr. Procent: x% = x/100. Funkcje kątowe liczą według wybranego DEG (stopnie) lub RAD (radiany). Ans to ostatni wynik. Brakujące nawiasy na końcu są domykane." },
-    { id: "bryly", name: "Figury i bryły", shapes: true, info: "" },
+    { id: "paliwa", name: "Paliwa (WO i gęstość)", w: "fuelWrap", info: "" },
+    { id: "fgaz", name: "F-gazy (CO₂e)", w: "fgazWrap", info: "" },
+    { id: "kalk", name: "Kalkulator", w: "calcBlock", info: "Wyniki są zaokrąglane do 12 cyfr. Procent: x% = x/100. Funkcje kątowe liczą według wybranego DEG (stopnie) lub RAD (radiany). Ans to ostatni wynik. Brakujące nawiasy na końcu są domykane." },
+    { id: "bryly", name: "Figury i bryły", w: "shapeWrap", info: "" },
     { id: "temp",     name: "Temperatura",  list: TEMP,    info: "" },
     { id: "cisn",     name: "Ciśnienie",    list: CISN,    info: "bar i kPa to ciśnienie bezwzględne lub nadciśnienie, zależnie od przypadku. Aplikacja przelicza tylko jednostki." },
     { id: "przep",    name: "Przepływ",     list: PRZEP,   info: "Przepływ objętościowy. Dla gazów nie uwzględnia warunków normalnych (Nm³)." },
@@ -367,22 +400,6 @@
   ];
   function cat(id) { for (var i = 0; i < CATS.length; i++) if (CATS[i].id === id) return CATS[i]; return CATS[0]; }
 
-  // Wartości opałowe orientacyjne [MJ na jednostkę podstawową]. Użytkownik może je poprawić.
-  var PALIWA = [
-    { id: "gaz",    n: "Gaz ziemny (sieciowy)", base: "m³",    wo: 35, alt: { u: "tys. m³", m: 1000 } },
-    { id: "wkam",   n: "Węgiel kamienny",       base: "kg",    wo: 23, alt: { u: "t", m: 1000 } },
-    { id: "wbru",   n: "Węgiel brunatny",       base: "kg",    wo: 9,  alt: { u: "t", m: 1000 } },
-    { id: "koks",   n: "Koks",                  base: "kg",    wo: 28, alt: { u: "t", m: 1000 } },
-    { id: "olop",   n: "Olej opałowy lekki",    base: "l",     wo: 36, alt: { u: "m³", m: 1000 } },
-    { id: "on",     n: "Olej napędowy",         base: "l",     wo: 36, alt: { u: "m³", m: 1000 } },
-    { id: "benz",   n: "Benzyna",               base: "l",     wo: 32, alt: { u: "m³", m: 1000 } },
-    { id: "lpg",    n: "LPG (propan-butan)",    base: "kg",    wo: 46, alt: { u: "t", m: 1000 } },
-    { id: "drew",   n: "Drewno opałowe",        base: "kg",    wo: 15, alt: { u: "t", m: 1000 } },
-    { id: "pell",   n: "Pellet drzewny",        base: "kg",    wo: 17, alt: { u: "t", m: 1000 } },
-    { id: "wlasne", n: "Własne paliwo",         base: "jedn.", wo: 1,  alt: null }
-  ];
-  var WYNIK_PALIWA = ["MJ", "GJ", "kWh", "MWh", "toe", "tce"];
-
   // ---- Stan i zapis lokalny ------------------------------------------------
   var S = {
     tab: "energia",
@@ -391,7 +408,8 @@
     onlyFav: {},               // { kategoria: true } = pokaż tylko ulubione jednostki
     unit: { energia: "kWh", moc: "kW", temp: "°C", cisn: "bar", przep: "m³/h", dlug: "m", pow: "m²", obj: "l", masa: "kg", gest: "kg/m³", pred: "km/h", sila: "kN" },
     val: {},
-    fuel: "gaz", fuelVal: "1", qUnit: {}, wo: {},
+    fu: "on", fuQ: "1", fuU: "l", fuOv: {},
+    fgSet: "ar6", fg: "r410a", fgQ: "1", fgU: "kg", fgOwn: "", fgHerm: false,
     calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0, lastTab: "energia",
     shape: "walec", shapeVals: {}, dimU: "mm", mat: "stal", dens: "7850", densU: "kg/m³"
   };
@@ -432,8 +450,6 @@
   function fromBase(e, b) { return e.from ? e.from(b) : b / e.f; }
   function has(arr, v) { return Array.isArray(arr) && arr.indexOf(v) >= 0; }
   function toggle(arr, v) { arr = Array.isArray(arr) ? arr.slice() : []; var i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); return arr; }
-  function fuelObj() { for (var i = 0; i < PALIWA.length; i++) if (PALIWA[i].id === S.fuel) return PALIWA[i]; return PALIWA[0]; }
-  function woOf(p) { var v = S.wo[p.id]; return (typeof v === "number" && v > 0) ? v : p.wo; }
 
   var toastT;
   function toast(msg) {
@@ -461,8 +477,8 @@
 
   // ---- Widok ---------------------------------------------------------------
   function chipOrder() {
-    var fav = CATS.filter(function (c) { return !c.calc && !c.shapes && has(S.favCats, c.id); });
-    var rest = CATS.filter(function (c) { return !c.calc && !c.shapes && !has(S.favCats, c.id); });
+    var fav = CATS.filter(function (c) { return !c.w && has(S.favCats, c.id); });
+    var rest = CATS.filter(function (c) { return !c.w && !has(S.favCats, c.id); });
     return fav.concat(rest);
   }
 
@@ -482,33 +498,26 @@
   }
 
   function setupTab() {
-    var c = cat(S.tab), fuelMode = !!c.fuel;
+    var c = cat(S.tab);
     renderChips();
-    $("fuelBlock").hidden = !fuelMode;
-    $("unitWrap").hidden = fuelMode;
-    $("mainInputs").className = fuelMode ? "inputs one" : "inputs";
     var fav = has(S.favCats, c.id);
     var fb = $("favCat");
     fb.textContent = (fav ? "★ Ulubiona kategoria" : "☆ Dodaj kategorię do ulubionych");
     fb.setAttribute("aria-pressed", fav ? "true" : "false");
-    var calcTab = !!c.calc;
-    var shapeTab = !!c.shapes, special = calcTab || shapeTab;
-    $("mJedn").setAttribute("aria-pressed", special ? "false" : "true");
-    $("mBryl").setAttribute("aria-pressed", shapeTab ? "true" : "false");
-    $("mKalk").setAttribute("aria-pressed", calcTab ? "true" : "false");
+    var special = !!c.w;
+    $("segSel").value = special ? c.id : "jedn";
     $("chips").hidden = special; $("barRow").hidden = special;
-    $("convCard").hidden = special; $("results").hidden = special; $("calcBlock").hidden = !calcTab; $("shapeWrap").hidden = !shapeTab;
-    if (shapeTab) { setupShapes(); $("info").textContent = ""; updateOnlyFavBtn(); return; }
-    if (calcTab) { setupCalc(); $("info").textContent = c.info || ""; updateOnlyFavBtn(); return; }
-    S.lastTab = c.id;
-    if (fuelMode) {
-      fillSelect($("fuel"), PALIWA.map(function (p) { return { v: p.id, t: p.n }; }), S.fuel);
-      setupFuel();
-    } else {
-      fillSelect($("unit"), c.list.map(function (e) { return { v: e.u, t: e.u }; }), S.unit[c.id]);
-      $("val").value = S.val[c.id];
-      $("info").textContent = c.info || "";
+    $("convCard").hidden = special; $("results").hidden = special;
+    ["calcBlock", "shapeWrap", "fgazWrap", "fuelWrap"].forEach(function (id) { $(id).hidden = !(special && c.w === id); });
+    if (special) {
+      var setup = { kalk: setupCalc, bryly: setupShapes, fgaz: setupFgaz, paliwa: setupFuels }[c.id];
+      if (setup) setup();
+      $("info").textContent = c.info || ""; updateOnlyFavBtn(); return;
     }
+    S.lastTab = c.id;
+    fillSelect($("unit"), c.list.map(function (e) { return { v: e.u, t: e.u }; }), S.unit[c.id]);
+    $("val").value = S.val[c.id];
+    $("info").textContent = c.info || "";
     updateOnlyFavBtn();
   }
 
@@ -520,31 +529,10 @@
     b.setAttribute("aria-pressed", on ? "true" : "false");
   }
 
-  function setupFuel() {
-    var p = fuelObj();
-    var opts = [{ v: p.base, t: p.base }];
-    if (p.alt) opts.push({ v: p.alt.u, t: p.alt.u });
-    var cur = S.qUnit[p.id] || p.base;
-    if (cur !== p.base && !(p.alt && p.alt.u === cur)) cur = p.base;
-    fillSelect($("qunit"), opts, cur);
-    $("woLabel").textContent = "Wart. opałowa, MJ/" + p.base;
-    $("wo").value = raw(woOf(p));
-    $("val").value = S.fuelVal;
-    $("info").innerHTML = '<b>Wartości opałowe są orientacyjne.</b> Do rozliczeń wpisz wartość z faktury dostawcy, ze świadectwa jakości albo ze wskaźników KOBiZE. Poprawioną wartość aplikacja zapamięta na tym telefonie.';
-  }
-
   function render() {
-    var c = cat(S.tab), ul = $("results"); if (c.calc || c.shapes) return; ul.innerHTML = "";
-    var items = [], srcU = null, canStar = !c.fuel;
-    if (c.fuel) {
-      var p = fuelObj(), q = parse($("val").value);
-      var qu = $("qunit").value, mult = (p.alt && qu === p.alt.u) ? p.alt.m : 1;
-      var mj = q * mult * parse($("wo").value);
-      WYNIK_PALIWA.forEach(function (u) {
-        var e = find(ENERGIA, u);
-        items.push({ u: e.u, n: e.n, v: fromBase(e, mj * 1e6) });
-      });
-    } else {
+    var c = cat(S.tab), ul = $("results"); if (c.w) return; ul.innerHTML = "";
+    var items = [], srcU = null, canStar = true;
+    if (c.list) {
       var cur = find(c.list, S.unit[c.id]);
       var base = toBase(cur, parse($("val").value));
       srcU = cur.u;
@@ -785,19 +773,6 @@
     $("kmZ").addEventListener("click", function () { S.calcMode = "zwykly"; save(); setupCalc(); });
     $("kmN").addEventListener("click", function () { S.calcMode = "naukowy"; save(); setupCalc(); });
     $("kAngle").addEventListener("click", function () { S.angle = S.angle === "rad" ? "deg" : "rad"; save(); setupCalc(); });
-    $("mKalk").addEventListener("click", function () {
-      if (S.tab === "kalk") return;
-      S.tab = "kalk"; save(); setupTab(); render();
-    });
-    $("mJedn").addEventListener("click", function () {
-      var cur = cat(S.tab); if (!cur.calc && !cur.shapes) return;
-      var t = cat(S.lastTab);
-      S.tab = (t.id === S.lastTab && !t.calc && !t.shapes) ? t.id : "energia"; save(); setupTab(); render();
-    });
-    $("mBryl").addEventListener("click", function () {
-      if (S.tab === "bryly") return;
-      S.tab = "bryly"; save(); setupTab(); render();
-    });
     $("kexpr").addEventListener("input", kChanged);
     $("kexpr").addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); kEq(); } });
     $("kres").addEventListener("click", function () { if (lastOk !== null) copy(cfmt(lastOk)); });
@@ -1023,6 +998,212 @@
     });
   }
 
+  // ---- F-gazy (CO₂e) -------------------------------------------------------
+  // GWP w horyzoncie 100 lat: g = [AR4, AR5, AR6]. Mieszaniny: skład wagowy, GWP liczony jako suma udziałów × GWP składników.
+  // Dla R-1234yf i R-1234ze(E) w AR5 podano "<1", przyjęto 1.
+  var FG_SETS = [
+    { v: "ar6", t: "IPCC AR6 (rozp. UE 2024/573)", s: "AR6", i: 2 },
+    { v: "ar5", t: "IPCC AR5", s: "AR5", i: 1 },
+    { v: "ar4", t: "IPCC AR4 (rozp. UE 517/2014)", s: "AR4", i: 0 }
+  ];
+  var FG = [
+    { id: "r410a", n: "R-410A", grp: "Mieszaniny", mix: [["r32", 0.5], ["r125", 0.5]] },
+    { id: "r404a", n: "R-404A", grp: "Mieszaniny", mix: [["r125", 0.44], ["r143a", 0.52], ["r134a", 0.04]] },
+    { id: "r407a", n: "R-407A", grp: "Mieszaniny", mix: [["r32", 0.20], ["r125", 0.40], ["r134a", 0.40]] },
+    { id: "r407c", n: "R-407C", grp: "Mieszaniny", mix: [["r32", 0.23], ["r125", 0.25], ["r134a", 0.52]] },
+    { id: "r407f", n: "R-407F", grp: "Mieszaniny", mix: [["r32", 0.30], ["r125", 0.30], ["r134a", 0.40]] },
+    { id: "r507a", n: "R-507A", grp: "Mieszaniny", mix: [["r125", 0.5], ["r143a", 0.5]] },
+    { id: "r448a", n: "R-448A", grp: "Mieszaniny", mix: [["r32", 0.26], ["r125", 0.26], ["r1234yf", 0.20], ["r134a", 0.21], ["r1234ze", 0.07]] },
+    { id: "r449a", n: "R-449A", grp: "Mieszaniny", mix: [["r32", 0.243], ["r125", 0.247], ["r1234yf", 0.253], ["r134a", 0.257]] },
+    { id: "r452a", n: "R-452A", grp: "Mieszaniny", mix: [["r32", 0.11], ["r125", 0.59], ["r1234yf", 0.30]] },
+    { id: "r513a", n: "R-513A", grp: "Mieszaniny", mix: [["r1234yf", 0.56], ["r134a", 0.44]] },
+    { id: "r454b", n: "R-454B", grp: "Mieszaniny", mix: [["r32", 0.689], ["r1234yf", 0.311]] },
+    { id: "r454c", n: "R-454C", grp: "Mieszaniny", mix: [["r32", 0.215], ["r1234yf", 0.785]] },
+    { id: "r32",    n: "R-32",           grp: "Czyste HFC", g: [675, 677, 771] },
+    { id: "r125",   n: "R-125",          grp: "Czyste HFC", g: [3500, 3170, 3740] },
+    { id: "r134a",  n: "R-134a",         grp: "Czyste HFC", g: [1430, 1300, 1530] },
+    { id: "r143a",  n: "R-143a",         grp: "Czyste HFC", g: [4470, 4800, 5810] },
+    { id: "r152a",  n: "R-152a",         grp: "Czyste HFC", g: [124, 138, 164] },
+    { id: "r227ea", n: "R-227ea",        grp: "Czyste HFC", g: [3220, 3350, 3600] },
+    { id: "r236fa", n: "R-236fa",        grp: "Czyste HFC", g: [9810, 8060, 8690] },
+    { id: "r245fa", n: "R-245fa",        grp: "Czyste HFC", g: [1030, 858, 962] },
+    { id: "r365mfc", n: "R-365mfc",      grp: "Czyste HFC", g: [794, 804, 914] },
+    { id: "r23",    n: "R-23 (HFC-23)",  grp: "Czyste HFC", g: [14800, 12400, 14600] },
+    { id: "r1234yf", n: "R-1234yf (HFO)",     grp: "HFO", g: [4, 1, 0.501] },
+    { id: "r1234ze", n: "R-1234ze(E) (HFO)",  grp: "HFO", g: [6, 1, 1.37] },
+    { id: "r744",   n: "R-744 (CO₂)",       grp: "Naturalne", g: [1, 1, 1] },
+    { id: "r717",   n: "R-717 (amoniak)",   grp: "Naturalne", g: [0, 0, 0] },
+    { id: "r290",   n: "R-290 (propan)",    grp: "Naturalne", g: [3, 3, 3] },
+    { id: "r600a",  n: "R-600a (izobutan)", grp: "Naturalne", g: [3, 3, 3] },
+    { id: "sf6",    n: "SF₆ (sześciofluorek siarki)", grp: "Inne", g: [22800, 23500, 25200] },
+    { id: "nf3",    n: "NF₃ (trójfluorek azotu)",     grp: "Inne", g: [17200, 16100, 17400] },
+    { id: "r22",    n: "R-22 (HCFC-22)",              grp: "Inne", g: [1810, 1760, 1960] }
+  ];
+  function fgObj(id) { for (var i = 0; i < FG.length; i++) if (FG[i].id === id) return FG[i]; return null; }
+  function fgSetObj(v) { for (var i = 0; i < FG_SETS.length; i++) if (FG_SETS[i].v === v) return FG_SETS[i]; return FG_SETS[0]; }
+  function gwpOf(id, i) {
+    var g = fgObj(id);
+    if (!g) return NaN;
+    if (g.mix) { var s = 0; g.mix.forEach(function (c) { s += c[1] * gwpOf(c[0], i); }); return s; }
+    return g.g[i];
+  }
+  function fgRender() {
+    var set = fgSetObj(S.fgSet), ul = $("fgRes"), note = $("fgNote");
+    ul.innerHTML = "";
+    var own = S.fg === "wlasny";
+    $("fgOwnBox").hidden = !own;
+    var gwp = own ? parse($("fgOwn").value) : gwpOf(S.fg, set.i);
+    if (!(isFinite(gwp) && gwp >= 0)) { note.textContent = "Wpisz własny GWP (liczba nie mniejsza od 0)."; return; }
+    var q = parse($("fgQ").value), mult = { kg: 1, g: 0.001, t: 1000 }[$("fgU").value] || 1;
+    var g = own ? null : fgObj(S.fg);
+    var mixTxt = (g && g.mix) ? "Mieszanina: " + g.mix.map(function (c) { return Math.round(c[1] * 1000) / 10 + "% " + fgObj(c[0]).n; }).join(" + ") : "";
+    var txt = "GWP dla horyzontu 100 lat. W mieszaninach GWP jest ważony udziałami masowymi składników. W AR5 wartości „<1” (R-1234yf, R-1234ze) przyjęto jako 1. Wartości orientacyjne, do raportów urzędowych sprawdź załączniki do rozporządzenia.";
+    if (isFinite(q) && q > 0) {
+      var kg = q * mult * gwp, t = kg / 1000;
+      addRes(ul, "Ekwiwalent CO₂", fmt(t) + " t CO₂e", fmt(kg) + " kg CO₂e", "mass", raw(t));
+      var tier1 = $("fgHerm").checked ? 10 : 5, lk;
+      if (t >= 500) lk = "co 3 miesiące, wymagany system wykrywania nieszczelności";
+      else if (t >= 50) lk = "co 6 miesięcy";
+      else if (t >= tier1) lk = "co 12 miesięcy";
+      else lk = "brak obowiązku okresowej kontroli (poniżej " + tier1 + " t CO₂e)";
+      addRes(ul, "Kontrola szczelności (jeśli to napełnienie urządzenia)", lk, "Progi: " + tier1 + " / 50 / 500 t CO₂e", "", lk);
+      txt += " Progi kontroli szczelności podano orientacyjnie wg rozporządzenia (UE) 2024/573. Szczegóły, np. systemy wykrywania nieszczelności, sprawdź w aktualnym tekście.";
+    } else txt = "Wpisz ilość czynnika. " + txt;
+    addRes(ul, "GWP (100 lat), " + set.s, fmt(gwp), mixTxt, "", raw(gwp));
+    note.textContent = txt;
+  }
+  function setupFgaz() {
+    fillSelect($("fgSet"), FG_SETS.map(function (s) { return { v: s.v, t: s.t }; }), S.fgSet);
+    var sel = $("fg"); sel.innerHTML = "";
+    ["Mieszaniny", "Czyste HFC", "HFO", "Naturalne", "Inne"].forEach(function (gn) {
+      var og = document.createElement("optgroup"); og.label = gn;
+      FG.filter(function (x) { return x.grp === gn; }).forEach(function (x) {
+        var o = document.createElement("option"); o.value = x.id; o.textContent = x.n; og.appendChild(o);
+      });
+      sel.appendChild(og);
+    });
+    var ow = document.createElement("option"); ow.value = "wlasny"; ow.textContent = "Własny GWP"; sel.appendChild(ow);
+    if (S.fg !== "wlasny" && !fgObj(S.fg)) S.fg = "r410a";
+    sel.value = S.fg;
+    fillSelect($("fgU"), [{ v: "kg", t: "kg" }, { v: "g", t: "g" }, { v: "t", t: "t" }], S.fgU);
+    $("fgQ").value = S.fgQ; $("fgOwn").value = S.fgOwn; $("fgHerm").checked = !!S.fgHerm;
+    fgRender();
+  }
+  function initFgaz() {
+    $("fgSet").addEventListener("change", function () { S.fgSet = $("fgSet").value; save(); fgRender(); });
+    $("fg").addEventListener("change", function () { S.fg = $("fg").value; save(); fgRender(); });
+    $("fgQ").addEventListener("input", function () { S.fgQ = $("fgQ").value; save(); fgRender(); });
+    $("fgU").addEventListener("change", function () { S.fgU = $("fgU").value; save(); fgRender(); });
+    $("fgOwn").addEventListener("input", function () { S.fgOwn = $("fgOwn").value; save(); fgRender(); });
+    $("fgHerm").addEventListener("change", function () { S.fgHerm = $("fgHerm").checked; save(); fgRender(); });
+  }
+
+  // ---- Paliwa: wartość opałowa i gęstość ----------------------------------
+  // wo: MJ/kg (ciecze i ciała stałe) albo MJ/m³ n (gazy); rho: kg/m³ (ciecz ok. 15 °C, gaz w war. normalnych, ciało stałe nasypowo).
+  var FU = [
+    { id: "benz",   k: "c", n: "Benzyna silnikowa",               wo: 44.0, rho: 745 },
+    { id: "on",     k: "c", n: "Olej napędowy (ON)",              wo: 43.0, rho: 835 },
+    { id: "olop",   k: "c", n: "Olej opałowy lekki",              wo: 42.7, rho: 860 },
+    { id: "olc",    k: "c", n: "Olej opałowy ciężki (mazut)",     wo: 40.4, rho: 970 },
+    { id: "jet",    k: "c", n: "Paliwo lotnicze Jet A-1",         wo: 44.1, rho: 800 },
+    { id: "lpg",    k: "c", n: "LPG (propan-butan)",              wo: 46.0, rho: 540 },
+    { id: "etan",   k: "c", n: "Etanol",                          wo: 26.8, rho: 790 },
+    { id: "bdies",  k: "c", n: "Biodiesel (FAME)",                wo: 37.0, rho: 880 },
+    { id: "gaz",    k: "g", n: "Gaz ziemny (wysokometanowy)",     wo: 35.0, rho: 0.74 },
+    { id: "biogaz", k: "g", n: "Biogaz (ok. 60% CH₄)",            wo: 21.5, rho: 1.15 },
+    { id: "wodor",  k: "g", n: "Wodór",                           wo: 10.8, rho: 0.0899 },
+    { id: "wkam",   k: "s", n: "Węgiel kamienny (energetyczny)",  wo: 23.0, rho: 800 },
+    { id: "ekog",   k: "s", n: "Ekogroszek",                      wo: 26.0, rho: 800 },
+    { id: "wbru",   k: "s", n: "Węgiel brunatny",                 wo: 9.0,  rho: 750 },
+    { id: "koks",   k: "s", n: "Koks",                            wo: 28.2, rho: 450 },
+    { id: "drew",   k: "s", n: "Drewno opałowe (powietrznosuche)", wo: 15.0, rho: 400 },
+    { id: "pell",   k: "s", n: "Pellet drzewny",                  wo: 17.0, rho: 650 }
+  ];
+  var FU_KIND = { c: "ciecz", g: "gaz", s: "ciało stałe" };
+  function fuObj(id) { for (var i = 0; i < FU.length; i++) if (FU[i].id === id) return FU[i]; return FU[0]; }
+  function fuVal(f) {
+    var o = (S.fuOv && S.fuOv[f.id]) || {};
+    return { wo: o.wo > 0 ? o.wo : f.wo, rho: o.rho > 0 ? o.rho : f.rho };
+  }
+  function fuWoKg(f, v) { return f.k === "g" ? v.wo / v.rho : v.wo; }   // MJ/kg
+  function fuUnits(f) {
+    if (f.k === "c") return [{ v: "l", t: "l" }, { v: "m3", t: "m³" }, { v: "kg", t: "kg" }, { v: "t", t: "t" }];
+    if (f.k === "g") return [{ v: "m3", t: "m³ n" }, { v: "tm3", t: "tys. m³ n" }, { v: "kg", t: "kg" }];
+    return [{ v: "kg", t: "kg" }, { v: "t", t: "t" }, { v: "m3", t: "m³ (nasypowo)" }];
+  }
+  function fuDesc(f, v) {
+    var woKg = fuWoKg(f, v), p = [];
+    if (f.k === "g") p.push(fmt(v.wo) + " MJ/m³ n", fmt(v.wo / 3.6) + " kWh/m³ n", fmt(woKg) + " MJ/kg", fmt(v.rho) + " kg/m³ n");
+    else if (f.k === "c") p.push(fmt(woKg) + " MJ/kg", fmt(woKg / 3.6) + " kWh/kg", fmt(woKg * v.rho / 1000) + " MJ/l", fmt(v.rho) + " kg/m³");
+    else p.push(fmt(woKg) + " MJ/kg", fmt(woKg / 3.6) + " kWh/kg", fmt(v.rho) + " kg/m³ (nasypowo)");
+    return p.join("  ·  ");
+  }
+  function fuFields() {
+    var f = fuObj(S.fu), v = fuVal(f), units = fuUnits(f);
+    if (!units.some(function (u) { return u.v === S.fuU; })) S.fuU = units[0].v;
+    fillSelect($("fuU"), units, S.fuU);
+    $("fuQ").value = S.fuQ;
+    $("fuWoL").textContent = "Wartość opałowa [" + (f.k === "g" ? "MJ/m³ n" : "MJ/kg") + "]";
+    $("fuRhoL").textContent = (f.k === "s" ? "Gęstość nasypowa" : "Gęstość") + " [kg/m³" + (f.k === "g" ? " n" : "") + "]";
+    $("fuWo").value = raw(v.wo); $("fuRho").value = raw(v.rho);
+    $("fuReset").hidden = !(S.fuOv && S.fuOv[f.id]);
+  }
+  function fuRender() {
+    var f = fuObj(S.fu), v = fuVal(f), ul = $("fuRes"); ul.innerHTML = "";
+    var woKg = fuWoKg(f, v), q = parse($("fuQ").value);
+    var note = FU_KIND[f.k] + ". " + fuDesc(f, v) + ". Wartości orientacyjne: do rozliczeń wpisz dane z faktury dostawcy, świadectwa jakości lub wskaźniki KOBiZE."
+      + (f.k === "g" ? " Objętość gazu w warunkach normalnych (0 °C, 101,325 kPa)." : "");
+    if (!(isFinite(q) && q > 0)) { $("fuNote").textContent = "Wpisz ilość paliwa. " + note; return; }
+    var mult = { kg: 1, t: 1000, l: v.rho / 1000, m3: v.rho, tm3: v.rho * 1000 }[$("fuU").value] || 1;
+    var mass = q * mult, vol = mass / v.rho, mj = mass * woKg;
+    addRes(ul, "Energia (wartość opałowa)", fmt(mj / 1000) + " GJ",
+      [fmt(mj) + " MJ", fmt(mj / 3.6) + " kWh", fmt(mj / 3600) + " MWh", fmt(mj / 41868) + " toe", fmt(mj / 29307.6) + " tce"].join("  ·  "), "mass", raw(mj / 1000));
+    addRes(ul, "Masa", fmt(mass) + " kg", fmt(mass / 1000) + " t", "", raw(mass));
+    if (f.k === "c") addRes(ul, "Objętość", fmt(vol * 1000) + " l", fmt(vol) + " m³", "", raw(vol * 1000));
+    else if (f.k === "g") addRes(ul, "Objętość", fmt(vol) + " m³ n", fmt(vol / 1000) + " tys. m³ n", "", raw(vol));
+    else addRes(ul, "Objętość (nasypowo)", fmt(vol) + " m³", fmt(vol * 1000) + " l", "", raw(vol));
+    $("fuNote").textContent = note;
+  }
+  function fuTable() {
+    var ul = $("fuTab"); ul.innerHTML = "";
+    FU.forEach(function (f) {
+      var li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; if (f.id === S.fu) li.className = "mass";
+      b.innerHTML = '<span class="t"></span><span class="v"></span><span class="s"></span>';
+      b.children[0].textContent = FU_KIND[f.k]; b.children[1].textContent = f.n; b.children[2].textContent = fuDesc(f, fuVal(f));
+      b.addEventListener("click", function () {
+        S.fu = f.id; save(); $("fu").value = f.id; fuFields(); fuRender(); fuTable();
+        try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) { window.scrollTo(0, 0); }
+      });
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  function setupFuels() {
+    S.fu = fuObj(S.fu).id;
+    fillSelect($("fu"), FU.map(function (f) { return { v: f.id, t: f.n }; }), S.fu);
+    fuFields(); fuRender(); fuTable();
+  }
+  function fuSetOv(key, input) {
+    var x = parse($(input).value);
+    if (isFinite(x) && x > 0) {
+      if (!S.fuOv || typeof S.fuOv !== "object") S.fuOv = {};
+      var o = S.fuOv[S.fu] || (S.fuOv[S.fu] = {});
+      o[key] = x; save(); $("fuReset").hidden = false;
+    }
+    fuRender(); fuTable();
+  }
+  function initFuels() {
+    $("fu").addEventListener("change", function () { S.fu = $("fu").value; save(); fuFields(); fuRender(); fuTable(); });
+    $("fuQ").addEventListener("input", function () { S.fuQ = $("fuQ").value; save(); fuRender(); });
+    $("fuU").addEventListener("change", function () { S.fuU = $("fuU").value; save(); fuRender(); });
+    $("fuWo").addEventListener("input", function () { fuSetOv("wo", "fuWo"); });
+    $("fuRho").addEventListener("input", function () { fuSetOv("rho", "fuRho"); });
+    $("fuReset").addEventListener("click", function () {
+      if (S.fuOv) delete S.fuOv[S.fu];
+      save(); fuFields(); fuRender(); fuTable();
+    });
+  }
+
   // ---- Zdarzenia -----------------------------------------------------------
   $("favCat").addEventListener("click", function () {
     S.favCats = toggle(S.favCats, S.tab); save(); setupTab();
@@ -1032,20 +1213,22 @@
   });
   $("val").addEventListener("input", function () {
     var c = cat(S.tab);
-    if (c.fuel) S.fuelVal = $("val").value; else S.val[c.id] = $("val").value;
+    S.val[c.id] = $("val").value;
     save(); render();
   });
   $("unit").addEventListener("change", function () { S.unit[S.tab] = $("unit").value; save(); render(); });
-  $("fuel").addEventListener("change", function () { S.fuel = $("fuel").value; save(); setupFuel(); render(); });
-  $("qunit").addEventListener("change", function () { S.qUnit[S.fuel] = $("qunit").value; save(); render(); });
-  $("wo").addEventListener("input", function () {
-    var v = parse($("wo").value);
-    if (isFinite(v) && v > 0) { S.wo[S.fuel] = v; save(); }
-    render();
+  // Lista rozwijana segmentów: Jednostki / Kalkulator / Bryły / F-gazy / Paliwa.
+  $("segSel").addEventListener("change", function () {
+    var v = $("segSel").value;
+    if (v === "jedn") {
+      var t = cat(S.lastTab);
+      S.tab = (t.id === S.lastTab && !t.w) ? t.id : "energia";
+    } else S.tab = v;
+    save(); setupTab(); render();
   });
 
   // ---- Start ---------------------------------------------------------------
-  load(); initCalc(); initShapes(); setupTab(); render();
+  load(); initCalc(); initShapes(); initFgaz(); initFuels(); setupTab(); render();
 
   var online = function () { $("status").textContent = navigator.onLine ? "" : "tryb offline"; };
   window.addEventListener("online", online); window.addEventListener("offline", online); online();

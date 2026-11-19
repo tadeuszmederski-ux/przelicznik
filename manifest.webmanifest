@@ -1,7 +1,7 @@
 {
   "name": "Calkó-lus",
   "short_name": "Calkó-lus",
-  "description": "Przeliczanie jednostek energii, mocy, paliw i innych wielkości inżynierskich oraz kalkulator zwykły i naukowy. Działa offline.",
+  "description": "Przeliczanie jednostek energii, mocy, paliw i innych wielkości inżynierskich kalkulator zwykły i naukowy, figury i bryły, CO₂e z F-gazów oraz wartości opałowe i gęstość paliw. Działa offline.",
   "lang": "pl",
   "start_url": "./index.html",
   "scope": "./",
