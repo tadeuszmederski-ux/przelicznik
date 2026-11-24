@@ -152,6 +152,9 @@
   #lvBub { position: absolute; left: 50%; top: 50%; width: 15%; height: 15%; margin: -7.5% 0 0 -7.5%; border-radius: 50%;
            background: var(--accent); opacity: .85; will-change: transform; }
   #lvBub.ok { background: #2e9d4f; }
+  #impTap { display: block; width: 100%; min-height: 130px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink);
+            font: inherit; font-size: 1.1rem; font-weight: 700; touch-action: manipulation; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  #impTap:active { filter: brightness(.88); }
   #lvEdge { text-align: center; font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 10px 0; }
   [hidden] { display: none !important; }
 </style>
@@ -294,6 +297,7 @@
         <option value="lin">Linijka (cm i cale)</option>
         <option value="poz">Poziomica i kątomierz</option>
         <option value="dach">Dach pod PV (azymut i nachylenie)</option>
+        <option value="imp">Licznik impulsów (moc z diody licznika)</option>
         <option value="gps">Działka (powierzchnia z GPS)</option>
       </select>
     </section>
@@ -321,7 +325,7 @@
         <label for="lvMode">Położenie telefonu</label>
         <select id="lvMode">
           <option value="flat">Płasko na powierzchni (poziomica)</option>
-          <option value="edge">Dłuższą krawędzią do przedmiotu (kątomierz)</option>
+          <option value="edge">Dłuższą krawędzią do przedmiotu (kątomierz, kąt nad poziomem)</option>
         </select>
         <div style="height:10px"></div>
         <button type="button" class="tog" id="lvZero">Zeruj (ustaw bieżące położenie jako zero)</button>
@@ -344,6 +348,21 @@
       </section>
       <ul class="sr-list" id="roofRes" aria-live="polite"></ul>
       <p class="note" id="roofNote"></p>
+    </div>
+
+    <div id="impBox" hidden>
+      <section class="card">
+        <label for="impC">Stała licznika [imp/kWh lub obr/kWh]</label>
+        <input id="impC" inputmode="decimal" autocomplete="off">
+        <div style="height:10px"></div>
+        <button type="button" id="impTap">STUKNIJ PRZY KAŻDYM MIGNIĘCIU DIODY (LUB OBROCIE TARCZY)</button>
+        <div class="rl-row">
+          <button type="button" class="tog" id="impUndo">Cofnij ostatni</button>
+          <button type="button" class="tog" id="impReset">Wyzeruj</button>
+        </div>
+      </section>
+      <ul class="sr-list" id="impRes" aria-live="polite"></ul>
+      <p class="note" id="impNote"></p>
     </div>
 
     <div id="gpsBox" hidden>
@@ -536,7 +555,7 @@
     prGrp: "firmy", prSort: false,
     calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0, lastTab: "energia",
     shape: "walec", shapeVals: {}, dimU: "mm", mat: "stal", dens: "7850", densU: "kg/m³",
-    meas: "lin", rlK: 0, lvMode: "flat", pvKwp: "10", pvBase: "1000", gpsPts: []
+    meas: "lin", rlK: 0, lvMode: "flat", impC: "1000", pvKwp: "10", pvBase: "1000", gpsPts: []
   };
   var KEY = "przelicznik-inzynierski-v1";
   function load() {
@@ -1651,18 +1670,20 @@
     var t = lvT, rad = 180 / Math.PI, z = S.lvZero || {};
     var ax = Math.atan2(t.x, Math.sqrt(t.y * t.y + t.z * t.z)) * rad;
     var ay = Math.atan2(t.y, Math.sqrt(t.x * t.x + t.z * t.z)) * rad;
-    return { ax: ax - (z.ax || 0), ay: ay - (z.ay || 0), edge: Math.atan2(t.x, t.y) * rad - (z.edge || 0) };
+    // Kątomierz: wzniesienie dłuższej krawędzi nad poziomem (oś y telefonu), niezależnie od tego, jak telefon jest obrócony.
+    var gl = Math.sqrt(t.x * t.x + t.y * t.y + t.z * t.z) || 1;
+    var el = Math.asin(Math.max(-1, Math.min(1, t.y / gl))) * rad;
+    return { ax: ax - (z.ax || 0), ay: ay - (z.ay || 0), edge: el - (z.ed || 0) };
   }
   function lvRender() {
     if (!lvT) return;
     var ang = lvAngles(), ul = $("lvRes"), deg = "°";
     ul.innerHTML = "";
     if (S.lvMode === "edge") {
-      var e = ang.edge; if (e > 180) e -= 360; if (e < -180) e += 360;
-      $("lvEdge").textContent = mm1(e).replace(",0", "") + deg;
-      var fh = 90 - Math.abs(e);
-      addRes(ul, "Kąt od pionu", mm1(Math.abs(e)) + deg, "", "", mm1(Math.abs(e)));
-      addRes(ul, "Kąt od poziomu", mm1(Math.abs(fh)) + deg, "nachylenie " + mm1(Math.tan(Math.abs(fh) / 57.29578) * 100) + " %", "", mm1(Math.abs(fh)));
+      var e = ang.edge, ae = Math.abs(e);
+      $("lvEdge").textContent = (e > 0.05 ? "+" : "") + mm1(e) + deg;
+      addRes(ul, "Kąt od poziomu", mm1(ae) + deg, ae >= 89.5 ? "krawędź prawie pionowo" : "nachylenie " + mm1(Math.tan(ae / 57.29578) * 100) + " %  ·  " + mm1(Math.tan(ae / 57.29578) * 1000) + " mm/m", "", mm1(ae));
+      addRes(ul, "Kąt od pionu", mm1(90 - ae) + deg, e > 0.05 ? "górny koniec telefonu jest wyżej" : (e < -0.05 ? "górny koniec telefonu jest niżej" : ""), "", mm1(90 - ae));
     } else {
       var tot = Math.sqrt(ang.ax * ang.ax + ang.ay * ang.ay), t = Math.tan(tot / 57.29578);
       var px = Math.max(-1, Math.min(1, ang.ax / 15)), py = Math.max(-1, Math.min(1, ang.ay / 15));
@@ -1741,6 +1762,27 @@
     window.removeEventListener("deviceorientationabsolute", roofHandler); window.removeEventListener("deviceorientation", roofHandler);
   }
 
+  // ---- Licznik impulsów: moc z czasu między mignięciami diody licznika --------
+  // P [kW] = 3600 / (czas między impulsami [s] × stała [imp/kWh]).
+  var impT = [];
+  function fk(x) { return (Math.round(x * 1000) / 1000).toFixed(3).replace(".", ","); }
+  function impRender() {
+    var ul = $("impRes"), c = parse($("impC").value), n = impT.length;
+    ul.innerHTML = "";
+    if (!(isFinite(c) && c > 0)) { $("impNote").textContent = "Wpisz stałą licznika z tabliczki znamionowej (np. 1000 imp/kWh)."; return; }
+    if (n >= 2) {
+      var dt = (impT[n - 1] - impT[n - 2]) / 1000, T = (impT[n - 1] - impT[0]) / 1000;
+      var pi = 3600 / (dt * c), pa = 3600 * (n - 1) / (c * T);
+      addRes(ul, "Moc średnia ze wszystkich impulsów", fk(pa) + " kW", Math.round(pa * 1000) + " W", "mass", fk(pa));
+      addRes(ul, "Moc z ostatniego odstępu", fk(pi) + " kW", Math.round(pi * 1000) + " W  ·  odstęp " + (Math.round(dt * 100) / 100).toString().replace(".", ",") + " s", "", fk(pi));
+      var e = (n - 1) / c;
+      addRes(ul, "Energia między pierwszym a ostatnim impulsem", fk(e) + " kWh", Math.round(e * 1000) + " Wh  ·  czas " + (Math.round(T * 10) / 10).toString().replace(".", ",") + " s", "", fk(e));
+    }
+    addRes(ul, "Liczba impulsów", String(n), n < 2 ? "stuknij jeszcze " + (2 - n) + " raz(y), aby policzyć moc" : "", "", String(n));
+    $("impNote").textContent = "Stuknięcie ma opóźnienie rzędu 0,05–0,1 s, więc moc z jednego odstępu bywa niedokładna, szczególnie przy dużej mocy i krótkich odstępach. Dokładniejsza jest moc średnia z kilkunastu impulsów. Wynik dotyczy mocy w czasie pomiaru, nie jest średnią dobową.";
+  }
+  function impTap() { impT.push(performance.now()); impRender(); if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} } }
+
   // ---- Działka: powierzchnia i obwód z punktów GPS ---------------------------
   var gpsW = null, gpsLast = null, gpsErr = "";
   function gpsGeom() {
@@ -1789,18 +1831,19 @@
   function measStopAll() { lvStop(); roofStop(); gpsStop(); }
 
   function measUpdate() {
-    var t = S.meas; if (["lin", "poz", "dach", "gps"].indexOf(t) < 0) t = "lin";
+    var t = S.meas; if (["lin", "poz", "dach", "imp", "gps"].indexOf(t) < 0) t = "lin";
     var lin = t === "lin";
-    $("rulerBox").hidden = t !== "lin"; $("levelBox").hidden = t !== "poz"; $("roofBox").hidden = t !== "dach"; $("gpsBox").hidden = t !== "gps";
+    $("rulerBox").hidden = t !== "lin"; $("levelBox").hidden = t !== "poz"; $("roofBox").hidden = t !== "dach"; $("gpsBox").hidden = t !== "gps"; $("impBox").hidden = t !== "imp";
     $("measTool").value = t;
     if (t !== "poz") lvStop(); if (t !== "dach") roofStop(); if (t !== "gps") gpsStop();
     if (t === "dach") { roofStart(); $("pvKwp").value = S.pvKwp; $("pvBase").value = S.pvBase; roofRender(); }
+    else if (t === "imp") { $("impC").value = S.impC; impRender(); }
     else if (t === "gps") { gpsStart(); gpsRender(); }
     else if (lin) { rlK(); $("rlK").value = rlK(); rlCard(); rlDraw(); rlResults(); }
     else if (t === "poz") {
       $("lvMode").value = S.lvMode; $("lvFlat").hidden = S.lvMode === "edge"; $("lvEdgeBox").hidden = S.lvMode !== "edge";
       $("lvNote").textContent = S.lvMode === "edge"
-        ? "Połóż dłuższą krawędź telefonu na pochyłym przedmiocie (ekran pionowo). Pion = 0°."
+        ? "Przyłóż dłuższą krawędź telefonu do mierzonego przedmiotu, ekranem do siebie lub do góry, górną krawędzią w stronę, której nachylenie chcesz zmierzyć. Wynik to kąt tej krawędzi nad poziomem (0° = poziomo, 90° = pionowo). Zerowanie ustawia bieżący odczyt jako 0°."
         : "Połóż telefon ekranem do góry. Gdy kulka jest w środku, powierzchnia jest pozioma. Przed pomiarem zeruj na powierzchni wzorcowej, jeśli potrzebujesz większej dokładności.";
       lvStart(); lvRender();
     }
@@ -1828,6 +1871,10 @@
     ["pvKwp", "pvBase"].forEach(function (id) {
       $(id).addEventListener("input", function () { S[id] = $(id).value; save(); roofRender(); });
     });
+    $("impTap").addEventListener("pointerdown", function (e) { e.preventDefault(); impTap(); });
+    $("impUndo").addEventListener("click", function () { impT.pop(); impRender(); });
+    $("impReset").addEventListener("click", function () { impT = []; impRender(); });
+    $("impC").addEventListener("input", function () { S.impC = $("impC").value; save(); impRender(); });
     $("gpsAdd").addEventListener("click", function () {
       if (!gpsLast) { toast("Brak pozycji GPS"); return; }
       if (!S.gpsPts) S.gpsPts = [];
@@ -1840,7 +1887,9 @@
     $("lvZero").addEventListener("click", function () {
       if (!lvT) return; lvT.got = true;
       var cur = lvAngles(), z = S.lvZero || {};
-      S.lvZero = { ax: (z.ax || 0) + cur.ax, ay: (z.ay || 0) + cur.ay, edge: (z.edge || 0) + cur.edge }; save(); lvRender(); toast("Wyzerowano");
+      if (S.lvMode === "edge") S.lvZero = { ax: z.ax || 0, ay: z.ay || 0, ed: (z.ed || 0) + cur.edge };
+      else S.lvZero = { ax: (z.ax || 0) + cur.ax, ay: (z.ay || 0) + cur.ay, ed: z.ed || 0 };
+      save(); lvRender(); toast("Wyzerowano");
     });
     window.addEventListener("resize", function () { if (cat(S.tab).id === "pomiar" && S.meas !== "poz") rlDraw(); });
   }
