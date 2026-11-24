@@ -133,6 +133,26 @@
   .sr-list .v { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .sr-list .s { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .sr-list li.mass button { background: var(--hot); border-color: var(--hot-line); }
+  /* Pomiary */
+  #measWrap { display: flex; flex-direction: column; gap: 12px; }
+  #rlWrap { overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); -webkit-overflow-scrolling: touch; }
+  #rlCv { display: block; cursor: crosshair; }
+  #rlCard { border: 2px solid var(--accent); border-radius: 10px; max-width: 100%; margin: 10px 0; background: var(--field);
+            display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: .8rem; text-align: center; padding: 4px; box-sizing: border-box; }
+  .rl-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .rl-row input[type=range] { flex: 1 1 auto; padding: 0; }
+  .rl-row .tog { flex: 0 0 auto; }
+  #lvArea { position: relative; width: min(78vw, 300px); aspect-ratio: 1 / 1; margin: 6px auto; border-radius: 50%;
+            border: 2px solid var(--line); background: var(--surface); overflow: hidden; }
+  #lvArea .hl, #lvArea .vl { position: absolute; background: var(--line); }
+  #lvArea .hl { left: 0; right: 0; top: 50%; height: 1px; }
+  #lvArea .vl { top: 0; bottom: 0; left: 50%; width: 1px; }
+  #lvArea .ring { position: absolute; left: 50%; top: 50%; width: 15%; height: 15%; transform: translate(-50%, -50%);
+                  border: 2px solid var(--muted); border-radius: 50%; }
+  #lvBub { position: absolute; left: 50%; top: 50%; width: 15%; height: 15%; margin: -7.5% 0 0 -7.5%; border-radius: 50%;
+           background: var(--accent); opacity: .85; will-change: transform; }
+  #lvBub.ok { background: #2e9d4f; }
+  #lvEdge { text-align: center; font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 10px 0; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -147,6 +167,7 @@
       <option value="fgaz">F-gazy (CO₂e)</option>
       <option value="paliwa">Paliwa (WO i gęstość)</option>
       <option value="ceny">Ceny energii i paliw</option>
+      <option value="pomiar">Pomiary (linijka, poziomica)</option>
     </select>
   </header>
 
@@ -264,6 +285,79 @@
     <h2 class="h2">Koszty energii z OZE (orientacyjnie)</h2>
     <ul class="sr-list" id="ozeList"></ul>
     <p class="note" id="ozeNote"></p>
+  </div>
+
+  <div id="measWrap" hidden>
+    <section class="card">
+      <label for="measTool">Narzędzie</label>
+      <select id="measTool">
+        <option value="lin">Linijka (cm i cale)</option>
+        <option value="poz">Poziomica i kątomierz</option>
+        <option value="dach">Dach pod PV (azymut i nachylenie)</option>
+        <option value="gps">Działka (powierzchnia z GPS)</option>
+      </select>
+    </section>
+
+    <div id="rulerBox">
+      <section class="card">
+        <button type="button" class="tog" id="rlCalBtn" aria-pressed="false">Kalibracja linijki</button>
+        <div id="rlCalBox" hidden>
+          <p class="note">Przyłóż kartę płatniczą krótszym bokiem (5,40 cm) do ekranu i dopasuj wysokość ramki do karty. Zwykle wystarczy to zrobić raz.</p>
+          <div id="rlCard">ramka = karta 5,40 cm</div>
+          <div class="rl-row">
+            <button type="button" class="tog" id="rlMinus" aria-label="Zmniejsz">−</button>
+            <input type="range" id="rlK" min="3" max="10" step="0.005" aria-label="Skala linijki">
+            <button type="button" class="tog" id="rlPlus" aria-label="Zwiększ">+</button>
+          </div>
+        </div>
+      </section>
+      <p class="note">Zero linijki jest u góry ramki. Stuknij w linijkę, aby postawić znacznik (dwa znaczniki dają odległość). Linijkę można przewijać w dół.</p>
+      <div id="rlWrap"><canvas id="rlCv"></canvas></div>
+      <ul class="sr-list" id="rlRes" aria-live="polite"></ul>
+    </div>
+
+    <div id="levelBox" hidden>
+      <section class="card">
+        <label for="lvMode">Położenie telefonu</label>
+        <select id="lvMode">
+          <option value="flat">Płasko na powierzchni (poziomica)</option>
+          <option value="edge">Dłuższą krawędzią do przedmiotu (kątomierz)</option>
+        </select>
+        <div style="height:10px"></div>
+        <button type="button" class="tog" id="lvZero">Zeruj (ustaw bieżące położenie jako zero)</button>
+      </section>
+      <div id="lvFlat">
+        <div id="lvArea"><div class="hl"></div><div class="vl"></div><div class="ring"></div><div id="lvBub"></div></div>
+      </div>
+      <div id="lvEdgeBox" hidden><div id="lvEdge">–</div></div>
+      <ul class="sr-list" id="lvRes" aria-live="polite"></ul>
+      <p class="note" id="lvNote"></p>
+    </div>
+
+    <div id="roofBox" hidden>
+      <section class="card">
+        <button type="button" class="tog" id="roofHold" aria-pressed="false">Zatrzymaj odczyt</button>
+        <div class="sh-grid">
+          <div><label for="pvKwp">Moc instalacji [kWp]</label><input id="pvKwp" inputmode="decimal" autocomplete="off"></div>
+          <div><label for="pvBase">Uzysk w optimum [kWh/kWp·rok]</label><input id="pvBase" inputmode="decimal" autocomplete="off"></div>
+        </div>
+      </section>
+      <ul class="sr-list" id="roofRes" aria-live="polite"></ul>
+      <p class="note" id="roofNote"></p>
+    </div>
+
+    <div id="gpsBox" hidden>
+      <section class="card">
+        <p class="note">Stań w narożniku działki, poczekaj, aż dokładność będzie lepsza niż kilka metrów, i stuknij „Dodaj punkt”. Powtórz dla kolejnych narożników po obwodzie (co najmniej 3).</p>
+        <div class="rl-row">
+          <button type="button" class="tog" id="gpsAdd">Dodaj punkt</button>
+          <button type="button" class="tog" id="gpsUndo">Cofnij</button>
+          <button type="button" class="tog" id="gpsClear">Wyczyść</button>
+        </div>
+      </section>
+      <ul class="sr-list" id="gpsRes" aria-live="polite"></ul>
+      <p class="note" id="gpsNote"></p>
+    </div>
   </div>
 
   <p class="note" id="info"></p>
@@ -413,6 +507,7 @@
     { id: "paliwa", name: "Paliwa (WO i gęstość)", w: "fuelWrap", info: "" },
     { id: "fgaz", name: "F-gazy (CO₂e)", w: "fgazWrap", info: "" },
     { id: "ceny", name: "Ceny energii i paliw", w: "priceWrap", info: "" },
+    { id: "pomiar", name: "Pomiary", w: "measWrap", info: "Linijka i poziomica korzystają z ekranu i czujnika telefonu, więc są orientacyjne. Do pomiarów, od których zależy rozliczenie lub bezpieczeństwo, użyj przyrządu z legalizacją." },
     { id: "kalk", name: "Kalkulator", w: "calcBlock", info: "Wyniki są zaokrąglane do 12 cyfr. Procent: x% = x/100. Funkcje kątowe liczą według wybranego DEG (stopnie) lub RAD (radiany). Ans to ostatni wynik. Brakujące nawiasy na końcu są domykane." },
     { id: "bryly", name: "Figury i bryły", w: "shapeWrap", info: "" },
     { id: "temp",     name: "Temperatura",  list: TEMP,    info: "" },
@@ -440,7 +535,8 @@
     fgSet: "ar6", fg: "r410a", fgQ: "1", fgU: "kg", fgOwn: "", fgHerm: false,
     prGrp: "firmy", prSort: false,
     calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0, lastTab: "energia",
-    shape: "walec", shapeVals: {}, dimU: "mm", mat: "stal", dens: "7850", densU: "kg/m³"
+    shape: "walec", shapeVals: {}, dimU: "mm", mat: "stal", dens: "7850", densU: "kg/m³",
+    meas: "lin", rlK: 0, lvMode: "flat", pvKwp: "10", pvBase: "1000", gpsPts: []
   };
   var KEY = "przelicznik-inzynierski-v1";
   function load() {
@@ -541,9 +637,10 @@
     $("segSel").value = special ? c.id : "jedn";
     $("chips").hidden = special; $("barRow").hidden = special;
     $("convCard").hidden = special; $("results").hidden = special;
-    ["calcBlock", "shapeWrap", "fgazWrap", "fuelWrap", "priceWrap"].forEach(function (id) { $(id).hidden = !(special && c.w === id); });
+    ["calcBlock", "shapeWrap", "fgazWrap", "fuelWrap", "priceWrap", "measWrap"].forEach(function (id) { $(id).hidden = !(special && c.w === id); });
+    if (c.id !== "pomiar") measStopAll();
     if (special) {
-      var setup = { kalk: setupCalc, bryly: setupShapes, fgaz: setupFgaz, paliwa: setupFuels, ceny: setupPrices }[c.id];
+      var setup = { kalk: setupCalc, bryly: setupShapes, fgaz: setupFgaz, paliwa: setupFuels, ceny: setupPrices, pomiar: setupMeas }[c.id];
       if (setup) setup();
       $("info").textContent = c.info || ""; updateOnlyFavBtn(); return;
     }
@@ -896,6 +993,21 @@
         if (!(ri > 0)) return ERR("Grubość ścianki musi być mniejsza niż promień zewnętrzny.");
         return [R(PC, 2, 2 * PI * p.h * (Ro + ri) + 2 * PI * (Ro * Ro - ri * ri)), R("Pole powierzchni zewnętrznej", 2, 2 * PI * Ro * p.h),
                 R("Pole powierzchni wewnętrznej", 2, 2 * PI * ri * p.h), R(VO, 3, PI * p.h * (Ro * Ro - ri * ri))];
+      } },
+    { id: "katownik", g: 1, s: true, n: "Kątownik (profil L)", p: [["a", "Ramię a"], ["b", "Ramię b (przy równoramiennym = a)"], ["t", "Grubość t"], ["L", "Długość L"]],
+      f: "A = t(a + b − t);  obwód przekroju = 2(a + b);  Pb = 2(a + b)·L;  Pc = Pb + 2A;  V = A·L. Bez zaokrągleń naroży, więc wynik jest nieco mniejszy niż z tablic. Dla kg/m wpisz L = 1 m.",
+      c: function (p) {
+        if (!(p.t < p.a && p.t < p.b)) return ERR("Grubość t musi być mniejsza od obu ramion.");
+        var A = p.t * (p.a + p.b - p.t), pb = 2 * (p.a + p.b) * p.L;
+        return [R("Pole przekroju A", 2, A), R(PC, 2, pb + 2 * A), R(PB, 2, pb), R(VO, 3, A * p.L)];
+      } },
+    { id: "ceownik", g: 1, s: true, n: "Ceownik (profil C)", p: [["H", "Wysokość H"], ["B", "Szerokość stopki B"], ["s", "Grubość środnika s"], ["t", "Grubość stopki t"], ["L", "Długość L"]],
+      f: "A = H·s + 2(B − s)·t;  obwód przekroju = 2H + 4B − 2s;  Pb = obwód·L;  Pc = Pb + 2A;  V = A·L. Stopki równoległe, bez zaokrągleń, więc wynik jest nieco mniejszy niż z tablic. Dla kg/m wpisz L = 1 m.",
+      c: function (p) {
+        if (!(p.s < p.B)) return ERR("Grubość środnika s musi być mniejsza od szerokości stopki B.");
+        if (!(2 * p.t < p.H)) return ERR("Dwie grubości stopki muszą być mniejsze od wysokości H.");
+        var A = p.H * p.s + 2 * (p.B - p.s) * p.t, pb = (2 * p.H + 4 * p.B - 2 * p.s) * p.L;
+        return [R("Pole przekroju A", 2, A), R(PC, 2, pb + 2 * A), R(PB, 2, pb), R(VO, 3, A * p.L)];
       } },
     { id: "stozek", g: 1, s: true, n: "Stożek", p: [["r", "Promień podstawy r"], ["h", "Wysokość h"]],
       f: "l = √(r² + h²);  Pb = π·r·l;  Pc = π·r(r + l);  V = π·r²·h/3.",
@@ -1478,8 +1590,263 @@
     save(); setupTab(); render();
   });
 
+  // ---- Pomiary: linijka i poziomica ----------------------------------------
+  // Ekran nie zna swojego rozmiaru fizycznego, dlatego skala linijki (px/mm) jest kalibrowana kartą 53,98 mm.
+  // Domyślnie 1 px CSS = 1/160 cala (Android), czyli 160/25,4 px na mm.
+  var CARD_H = 53.98, RL_LEN = 300, rlM = [], lvOn = false, lvT = null;
+  function rlK() { return (S.rlK >= 3 && S.rlK <= 10) ? S.rlK : 160 / 25.4; }
+  function mm1(x) { return (Math.round(x * 10) / 10).toFixed(1).replace(".", ","); }
+  function inFrac(mm) {
+    var s = Math.round(mm / 25.4 * 16), w = Math.floor(s / 16), r = s % 16, d = 16;
+    while (r && r % 2 === 0) { r /= 2; d /= 2; }
+    return (r ? (w ? w + " " : "") + r + "/" + d : String(w)) + " cala";
+  }
+  function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#888"; }
+  function rlDraw() {
+    var cv = $("rlCv"), wrap = $("rlWrap"), k = rlK();
+    if (!wrap.clientWidth) return;
+    wrap.style.maxHeight = Math.max(260, window.innerHeight - 190) + "px";
+    var w = wrap.clientWidth, h = Math.round(RL_LEN * k), d = window.devicePixelRatio || 1;
+    cv.style.width = w + "px"; cv.style.height = h + "px"; cv.width = Math.round(w * d); cv.height = Math.round(h * d);
+    var g = cv.getContext("2d"), ink = cssv("--ink"), mut = cssv("--muted"), acc = cssv("--accent");
+    g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, w, h);
+    g.lineWidth = 1; g.fillStyle = ink; g.strokeStyle = ink; g.font = "13px sans-serif"; g.textBaseline = "middle";
+    var i, y, L;
+    for (i = 0; i * k <= h; i++) {
+      y = i * k + 0.5; L = i % 10 === 0 ? 26 : (i % 5 === 0 ? 18 : 11);
+      g.beginPath(); g.moveTo(0, y); g.lineTo(L, y); g.stroke();
+      if (i % 10 === 0 && i > 0) { g.textAlign = "left"; g.fillText(String(i / 10), 32, y); }
+    }
+    var step = k * 25.4 / 16;
+    for (i = 0; i * step <= h; i++) {
+      y = i * step + 0.5; L = i % 16 === 0 ? 26 : (i % 8 === 0 ? 20 : (i % 4 === 0 ? 15 : (i % 2 === 0 ? 11 : 7)));
+      g.beginPath(); g.moveTo(w, y); g.lineTo(w - L, y); g.stroke();
+      if (i % 16 === 0 && i > 0) { g.textAlign = "right"; g.fillText(String(i / 16), w - 32, y); }
+    }
+    g.fillStyle = mut; g.textAlign = "center"; g.fillText("cm", w * 0.28, 10); g.fillText("cale", w * 0.72, 10);
+    g.strokeStyle = acc; g.lineWidth = 2;
+    rlM.forEach(function (m) { g.beginPath(); g.moveTo(0, m * k); g.lineTo(w, m * k); g.stroke(); });
+  }
+  function rlResults() {
+    var ul = $("rlRes"); ul.innerHTML = "";
+    rlM.forEach(function (m, i) { addRes(ul, "Znacznik " + (i + 1), mm1(m) + " mm", mm1(m / 10) + " cm  ·  " + inFrac(m), "", mm1(m)); });
+    if (rlM.length === 2) {
+      var dd = Math.abs(rlM[1] - rlM[0]);
+      addRes(ul, "Odległość", mm1(dd) + " mm", mm1(dd / 10) + " cm  ·  " + (Math.round(dd) / 1000).toFixed(3).replace(".", ",") + " m  ·  " + inFrac(dd), "mass", mm1(dd));
+    }
+  }
+  function rlSetK(v) {
+    v = Math.max(3, Math.min(10, v)); S.rlK = Math.round(v * 1000) / 1000; save();
+    $("rlK").value = S.rlK; rlCard(); rlDraw();
+  }
+  function rlCard() { $("rlCard").style.height = Math.round(CARD_H * rlK()) + "px"; }
+  function lvHandler(e) {
+    var a = e.accelerationIncludingGravity;
+    if (!a || a.x === null || a.x === undefined) return;
+    lvT = lvT || { x: a.x, y: a.y, z: a.z, got: true };
+    var f = 0.25; lvT.x += (a.x - lvT.x) * f; lvT.y += (a.y - lvT.y) * f; lvT.z += (a.z - lvT.z) * f; lvT.got = true;
+    lvRender();
+  }
+  function lvAngles() {
+    var t = lvT, rad = 180 / Math.PI, z = S.lvZero || {};
+    var ax = Math.atan2(t.x, Math.sqrt(t.y * t.y + t.z * t.z)) * rad;
+    var ay = Math.atan2(t.y, Math.sqrt(t.x * t.x + t.z * t.z)) * rad;
+    return { ax: ax - (z.ax || 0), ay: ay - (z.ay || 0), edge: Math.atan2(t.x, t.y) * rad - (z.edge || 0) };
+  }
+  function lvRender() {
+    if (!lvT) return;
+    var ang = lvAngles(), ul = $("lvRes"), deg = "°";
+    ul.innerHTML = "";
+    if (S.lvMode === "edge") {
+      var e = ang.edge; if (e > 180) e -= 360; if (e < -180) e += 360;
+      $("lvEdge").textContent = mm1(e).replace(",0", "") + deg;
+      var fh = 90 - Math.abs(e);
+      addRes(ul, "Kąt od pionu", mm1(Math.abs(e)) + deg, "", "", mm1(Math.abs(e)));
+      addRes(ul, "Kąt od poziomu", mm1(Math.abs(fh)) + deg, "nachylenie " + mm1(Math.tan(Math.abs(fh) / 57.29578) * 100) + " %", "", mm1(Math.abs(fh)));
+    } else {
+      var tot = Math.sqrt(ang.ax * ang.ax + ang.ay * ang.ay), t = Math.tan(tot / 57.29578);
+      var px = Math.max(-1, Math.min(1, ang.ax / 15)), py = Math.max(-1, Math.min(1, ang.ay / 15));
+      var r = $("lvArea").clientWidth * 0.42;
+      $("lvBub").style.transform = "translate(" + (px * r) + "px," + (-py * r) + "px)";
+      $("lvBub").className = tot < 0.3 ? "ok" : "";
+      addRes(ul, "Nachylenie", mm1(tot) + deg, "w osi poprzecznej " + mm1(ang.ax) + deg + "  ·  wzdłużnej " + mm1(ang.ay) + deg, "", mm1(tot));
+      addRes(ul, "Spadek", mm1(t * 100) + " %", mm1(t * 1000) + " mm/m", "", mm1(t * 100));
+    }
+  }
+  function lvStart() {
+    if (lvOn) return; lvOn = true; lvT = null;
+    window.addEventListener("devicemotion", lvHandler);
+    setTimeout(function () {
+      if (lvOn && !lvT) $("lvNote").textContent = "Brak odczytu z czujnika. Sprawdź, czy przeglądarka ma dostęp do czujników ruchu (Ustawienia witryny, Czujniki ruchu).";
+    }, 2000);
+  }
+  function lvStop() { if (!lvOn) return; lvOn = false; window.removeEventListener("devicemotion", lvHandler); }
+  // ---- Dach pod PV: azymut i nachylenie z czujników orientacji --------------
+  // Normalna do ekranu w układzie Ziemi (x wschód, y północ, z góra) wg macierzy Rz(α)·Rx(β)·Ry(γ).
+  // Pochylenie normalnej (kąt od pionu) = nachylenie połaci, a jej rzut poziomy wskazuje w stronę spadku (azymut połaci).
+  // Tabela: uzysk względem optimum [%], wiersze = nachylenie 0/15/30/45/60/90°, kolumny = odchylenie od południa 0/45/90/135/180°.
+  var PV_T = [0, 15, 30, 45, 60, 90], PV_O = [0, 45, 90, 135, 180];
+  var PV_F = [[87, 87, 87, 87, 87], [94, 92, 88, 83, 80], [99, 95, 87, 74, 68], [100, 94, 82, 66, 57], [97, 90, 76, 57, 46], [72, 66, 55, 40, 32]];
+  var roofOn = false, roofN = null, roofHold = false, roofFz = null, roofAbs = false, roofRel = false;
+  function pvFactor(tilt, off) {
+    function seg(arr, v) { var i = 0; while (i < arr.length - 2 && v > arr[i + 1]) i++; return i; }
+    tilt = Math.max(0, Math.min(90, tilt)); off = Math.max(0, Math.min(180, off));
+    var i = seg(PV_T, tilt), j = seg(PV_O, off);
+    var ft = (tilt - PV_T[i]) / (PV_T[i + 1] - PV_T[i]), fo = (off - PV_O[j]) / (PV_O[j + 1] - PV_O[j]);
+    var a = PV_F[i][j] * (1 - fo) + PV_F[i][j + 1] * fo, b = PV_F[i + 1][j] * (1 - fo) + PV_F[i + 1][j + 1] * fo;
+    return a * (1 - ft) + b * ft;
+  }
+  var DIRS = ["północ", "północny wschód", "wschód", "południowy wschód", "południe", "południowy zachód", "zachód", "północny zachód"];
+  function roofHandler(e) {
+    if (e.alpha === null || e.alpha === undefined || e.beta === null || e.beta === undefined) return;
+    if (e.type === "deviceorientationabsolute") roofAbs = true; else if (roofAbs) return;
+    roofRel = !roofAbs;
+    var r = Math.PI / 180, a = e.alpha * r, b = e.beta * r, g = (e.gamma || 0) * r;
+    var s = Math.sin(g), c = Math.cos(g), sb = Math.sin(b), cb = Math.cos(b), sa = Math.sin(a), ca = Math.cos(a);
+    var n = [ca * s + sa * sb * c, sa * s - ca * sb * c, cb * c];
+    if (!roofN) roofN = n; else for (var i = 0; i < 3; i++) roofN[i] += (n[i] - roofN[i]) * 0.15;
+    roofRender();
+  }
+  function roofRender() {
+    var n = roofHold ? roofFz : roofN, ul = $("roofRes");
+    if (!n) return;
+    ul.innerHTML = "";
+    var len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) || 1;
+    var tilt = Math.acos(Math.max(-1, Math.min(1, n[2] / len))) * 180 / Math.PI;
+    if (tilt > 90) tilt = 180 - tilt;
+    var flat = tilt < 3, az = (Math.atan2(n[0], n[1]) * 180 / Math.PI + 360) % 360;
+    var off = Math.abs(((az - 180 + 540) % 360) - 180);
+    var fac = pvFactor(tilt, flat ? 0 : off), kwp = parse($("pvKwp").value), base = parse($("pvBase").value);
+    addRes(ul, "Nachylenie połaci", mm1(tilt) + "°", "", "", mm1(tilt));
+    if (flat) addRes(ul, "Azymut", "dach płaski", "nachylenie poniżej 3°, kierunek nie ma znaczenia", "", "");
+    else addRes(ul, "Azymut połaci (strona, w którą patrzą panele)", Math.round(az) + "°", DIRS[Math.round(az / 45) % 8] + "  ·  odchylenie od południa " + Math.round(off) + "°", "", String(Math.round(az)));
+    addRes(ul, "Uzysk względem optimum (południe, ok. 35°)", Math.round(fac) + " %", "", "", String(Math.round(fac)));
+    if (isFinite(kwp) && kwp > 0 && isFinite(base) && base > 0) {
+      var y = kwp * base * fac / 100;
+      addRes(ul, "Orientacyjna produkcja roczna", fmt(Math.round(y)) + " kWh", fmt(Math.round(base * fac / 100)) + " kWh/kWp  ·  " + fmt(Math.round(y / 12)) + " kWh/miesiąc średnio", "mass", String(Math.round(y)));
+    }
+    $("roofNote").textContent = (roofRel ? "Uwaga: telefon nie udostępnia kompasu, więc azymut jest względny i nie wskazuje stron świata. " : "") +
+      "Połóż telefon ekranem do góry płasko na połaci, z dala od blachy i metalowych elementów, bo zaburzają kompas. Przed pomiarem zakreśl telefonem ósemkę, aby skalibrować kompas. Współczynnik uzysku to wartość orientacyjna (±5 punktów %), bez uwzględnienia zacienienia.";
+  }
+  function roofStart() {
+    if (roofOn) return; roofOn = true; roofN = null; roofAbs = false;
+    window.addEventListener("deviceorientationabsolute", roofHandler);
+    window.addEventListener("deviceorientation", roofHandler);
+    setTimeout(function () {
+      if (roofOn && !roofN) $("roofNote").textContent = "Brak odczytu z czujników orientacji. Sprawdź, czy przeglądarka ma dostęp do czujników ruchu.";
+    }, 2000);
+  }
+  function roofStop() {
+    if (!roofOn) return; roofOn = false;
+    window.removeEventListener("deviceorientationabsolute", roofHandler); window.removeEventListener("deviceorientation", roofHandler);
+  }
+
+  // ---- Działka: powierzchnia i obwód z punktów GPS ---------------------------
+  var gpsW = null, gpsLast = null, gpsErr = "";
+  function gpsGeom() {
+    var P = S.gpsPts || [];
+    if (!P.length) return null;
+    var Rz = 6371008.8, d2r = Math.PI / 180, la0 = P[0][0] * d2r, xs = [], ys = [], i, open = 0, area = 0;
+    P.forEach(function (p) { xs.push((p[1] - P[0][1]) * d2r * Math.cos(la0) * Rz); ys.push((p[0] - P[0][0]) * d2r * Rz); });
+    function dist(a, b) { return Math.sqrt((xs[a] - xs[b]) * (xs[a] - xs[b]) + (ys[a] - ys[b]) * (ys[a] - ys[b])); }
+    for (i = 1; i < P.length; i++) open += dist(i - 1, i);
+    var n = P.length, g = { n: n, open: open };
+    if (n >= 3) {
+      for (i = 0; i < n; i++) { var j = (i + 1) % n; area += xs[i] * ys[j] - xs[j] * ys[i]; }
+      g.area = Math.abs(area) / 2; g.perim = open + dist(n - 1, 0);
+    }
+    return g;
+  }
+  function gpsRender() {
+    var ul = $("gpsRes"); ul.innerHTML = "";
+    var c = gpsLast;
+    if (c) {
+      var sec = c.latitude.toFixed(6).replace(".", ",") + ", " + c.longitude.toFixed(6).replace(".", ",") +
+        (c.altitude !== null && c.altitude !== undefined ? "  ·  wys. " + Math.round(c.altitude) + " m n.p.m." : "");
+      addRes(ul, "Bieżąca pozycja (dokładność)", "± " + Math.round(c.accuracy) + " m", sec, "", c.latitude.toFixed(6) + ", " + c.longitude.toFixed(6));
+    }
+    var g = gpsGeom();
+    if (g) {
+      if (g.area !== undefined) {
+        addRes(ul, "Powierzchnia", fmt(g.area) + " m²", fmt(g.area / 100) + " a  ·  " + fmt(g.area / 10000) + " ha", "mass", raw(g.area));
+        addRes(ul, "Obwód (z zamknięciem)", fmt(g.perim) + " m", "", "", raw(g.perim));
+      }
+      if (g.n >= 2) addRes(ul, "Długość linii przez punkty", fmt(g.open) + " m", "", "", raw(g.open));
+      addRes(ul, "Liczba punktów", String(g.n), g.n < 3 ? "do powierzchni potrzeba co najmniej 3" : "", "", String(g.n));
+    }
+    $("gpsNote").textContent = gpsErr || "Dokładność GPS w telefonie to zwykle 3–10 m (najlepiej na otwartej przestrzeni), więc wynik jest orientacyjny i nie zastępuje pomiaru geodezyjnego. Im większa działka, tym mniejszy względny błąd.";
+  }
+  function gpsStart() {
+    if (gpsW !== null) return;
+    if (!navigator.geolocation) { gpsErr = "Ta przeglądarka nie obsługuje lokalizacji."; gpsRender(); return; }
+    gpsErr = "";
+    gpsW = navigator.geolocation.watchPosition(function (p) { gpsLast = p.coords; gpsErr = ""; gpsRender(); }, function (er) {
+      gpsErr = er.code === 1 ? "Brak zgody na lokalizację. Zezwól w Ustawieniach witryny w Chrome." : "Nie można ustalić pozycji (włącz GPS i wyjdź na otwartą przestrzeń).";
+      gpsRender();
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+  }
+  function gpsStop() { if (gpsW !== null) { navigator.geolocation.clearWatch(gpsW); gpsW = null; } }
+  function measStopAll() { lvStop(); roofStop(); gpsStop(); }
+
+  function measUpdate() {
+    var t = S.meas; if (["lin", "poz", "dach", "gps"].indexOf(t) < 0) t = "lin";
+    var lin = t === "lin";
+    $("rulerBox").hidden = t !== "lin"; $("levelBox").hidden = t !== "poz"; $("roofBox").hidden = t !== "dach"; $("gpsBox").hidden = t !== "gps";
+    $("measTool").value = t;
+    if (t !== "poz") lvStop(); if (t !== "dach") roofStop(); if (t !== "gps") gpsStop();
+    if (t === "dach") { roofStart(); $("pvKwp").value = S.pvKwp; $("pvBase").value = S.pvBase; roofRender(); }
+    else if (t === "gps") { gpsStart(); gpsRender(); }
+    else if (lin) { rlK(); $("rlK").value = rlK(); rlCard(); rlDraw(); rlResults(); }
+    else if (t === "poz") {
+      $("lvMode").value = S.lvMode; $("lvFlat").hidden = S.lvMode === "edge"; $("lvEdgeBox").hidden = S.lvMode !== "edge";
+      $("lvNote").textContent = S.lvMode === "edge"
+        ? "Połóż dłuższą krawędź telefonu na pochyłym przedmiocie (ekran pionowo). Pion = 0°."
+        : "Połóż telefon ekranem do góry. Gdy kulka jest w środku, powierzchnia jest pozioma. Przed pomiarem zeruj na powierzchni wzorcowej, jeśli potrzebujesz większej dokładności.";
+      lvStart(); lvRender();
+    }
+  }
+  function setupMeas() { measUpdate(); }
+  function initMeas() {
+    $("measTool").addEventListener("change", function () { S.meas = $("measTool").value; save(); measUpdate(); });
+    $("rlCalBtn").addEventListener("click", function () {
+      var b = $("rlCalBox"); b.hidden = !b.hidden; $("rlCalBtn").setAttribute("aria-pressed", b.hidden ? "false" : "true"); rlCard();
+    });
+    $("rlK").addEventListener("input", function () { rlSetK(parseFloat($("rlK").value)); });
+    $("rlMinus").addEventListener("click", function () { rlSetK(rlK() - 0.01); });
+    $("rlPlus").addEventListener("click", function () { rlSetK(rlK() + 0.01); });
+    $("rlCv").addEventListener("click", function (e) {
+      var y = e.clientY - $("rlCv").getBoundingClientRect().top;
+      if (rlM.length >= 2) rlM = [];
+      rlM.push(y / rlK()); rlDraw(); rlResults();
+    });
+    $("roofHold").addEventListener("click", function () {
+      roofHold = !roofHold; roofFz = roofN ? roofN.slice() : null;
+      $("roofHold").setAttribute("aria-pressed", roofHold ? "true" : "false");
+      $("roofHold").textContent = roofHold ? "Wznów odczyt na żywo" : "Zatrzymaj odczyt";
+      roofRender();
+    });
+    ["pvKwp", "pvBase"].forEach(function (id) {
+      $(id).addEventListener("input", function () { S[id] = $(id).value; save(); roofRender(); });
+    });
+    $("gpsAdd").addEventListener("click", function () {
+      if (!gpsLast) { toast("Brak pozycji GPS"); return; }
+      if (!S.gpsPts) S.gpsPts = [];
+      S.gpsPts.push([gpsLast.latitude, gpsLast.longitude]); save(); gpsRender();
+      toast(gpsLast.accuracy > 15 ? "Dodano, ale dokładność słaba (± " + Math.round(gpsLast.accuracy) + " m)" : "Dodano punkt " + S.gpsPts.length);
+    });
+    $("gpsUndo").addEventListener("click", function () { if (S.gpsPts && S.gpsPts.length) { S.gpsPts.pop(); save(); gpsRender(); } });
+    $("gpsClear").addEventListener("click", function () { S.gpsPts = []; save(); gpsRender(); });
+    $("lvMode").addEventListener("change", function () { S.lvMode = $("lvMode").value; save(); measUpdate(); });
+    $("lvZero").addEventListener("click", function () {
+      if (!lvT) return; lvT.got = true;
+      var cur = lvAngles(), z = S.lvZero || {};
+      S.lvZero = { ax: (z.ax || 0) + cur.ax, ay: (z.ay || 0) + cur.ay, edge: (z.edge || 0) + cur.edge }; save(); lvRender(); toast("Wyzerowano");
+    });
+    window.addEventListener("resize", function () { if (cat(S.tab).id === "pomiar" && S.meas !== "poz") rlDraw(); });
+  }
+
   // ---- Start ---------------------------------------------------------------
-  load(); initCalc(); initShapes(); initFgaz(); initFuels(); initPrices(); loadPrices(); setupTab(); render();
+  load(); initCalc(); initShapes(); initFgaz(); initFuels(); initPrices(); initMeas(); loadPrices(); setupTab(); render();
 
   var online = function () { $("status").textContent = navigator.onLine ? "" : "tryb offline"; };
   window.addEventListener("online", online); window.addEventListener("offline", online); online();

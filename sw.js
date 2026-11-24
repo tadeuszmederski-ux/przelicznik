@@ -1,5 +1,5 @@
 // Service worker: zapisuje aplikację w pamięci telefonu, żeby działała bez internetu.
-var CACHE = "przelicznik-energii-v12";
+var CACHE = "przelicznik-energii-v15";
 var FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", function (e) {
