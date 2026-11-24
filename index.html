@@ -377,6 +377,18 @@
       <ul class="sr-list" id="gpsRes" aria-live="polite"></ul>
       <p class="note" id="gpsNote"></p>
     </div>
+
+    <h2 class="h2">Zapisane pomiary</h2>
+    <section class="card">
+      <label for="logNote">Notatka do zapisu (miejsce, urządzenie, uwagi)</label>
+      <input id="logNote" autocomplete="off">
+      <div class="rl-row">
+        <button type="button" class="tog" id="logSave">Zapisz bieżący wynik</button>
+        <button type="button" class="tog" id="logCopy">Kopiuj wszystko</button>
+        <button type="button" class="tog" id="logClear">Wyczyść listę</button>
+      </div>
+    </section>
+    <ul class="sr-list" id="logList"></ul>
   </div>
 
   <p class="note" id="info"></p>
@@ -555,7 +567,7 @@
     prGrp: "firmy", prSort: false,
     calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0, lastTab: "energia",
     shape: "walec", shapeVals: {}, dimU: "mm", mat: "stal", dens: "7850", densU: "kg/m³",
-    meas: "lin", rlK: 0, lvMode: "flat", impC: "1000", pvKwp: "10", pvBase: "1000", gpsPts: []
+    meas: "lin", rlK: 0, lvMode: "flat", measLog: [], impC: "1000", pvKwp: "10", pvBase: "1000", gpsPts: []
   };
   var KEY = "przelicznik-inzynierski-v1";
   function load() {
@@ -604,15 +616,16 @@
     var t = $("toast"); t.textContent = msg; t.classList.add("on");
     clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("on"); }, 1400);
   }
-  function copy(text) {
+  function copy(text, label) {
+    var msg = label || "Skopiowano: " + text;
     function fallback() {
       var ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
       document.body.appendChild(ta); ta.select();
-      try { document.execCommand("copy"); toast("Skopiowano: " + text); } catch (e) { toast("Nie udało się skopiować"); }
+      try { document.execCommand("copy"); toast(msg); } catch (e) { toast("Nie udało się skopiować"); }
       document.body.removeChild(ta);
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { toast("Skopiowano: " + text); }, fallback);
+      navigator.clipboard.writeText(text).then(function () { toast(msg); }, fallback);
     } else fallback();
   }
   function fillSelect(sel, items, current) {
@@ -1783,6 +1796,42 @@
   }
   function impTap() { impT.push(performance.now()); impRender(); if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} } }
 
+  // ---- Zapisane pomiary: wynik bieżącego narzędzia + data + notatka -----------
+  var LOG_UL = { lin: "rlRes", poz: "lvRes", dach: "roofRes", imp: "impRes", gps: "gpsRes" };
+  function logText(en) {
+    return en.d + "  " + en.tool + (en.note ? "  [" + en.note + "]" : "") + "\n" + en.lines.join("\n");
+  }
+  function logRender() {
+    var ul = $("logList"), L = S.measLog || [];
+    ul.innerHTML = "";
+    L.slice().reverse().forEach(function (en) {
+      var li = document.createElement("li"), b = document.createElement("button"), del = document.createElement("button");
+      b.type = "button"; b.innerHTML = '<span class="t"></span><span class="v"></span><span class="s"></span>';
+      b.children[0].textContent = en.d + "  ·  " + en.tool;
+      b.children[1].textContent = en.lines[0] || "";
+      b.children[2].textContent = (en.note ? en.note + "\n" : "") + en.lines.slice(1).join("\n"); b.children[2].style.whiteSpace = "pre-line";
+      b.addEventListener("click", function () { copy(logText(en), "Skopiowano wpis"); });
+      del.type = "button"; del.className = "tog"; del.textContent = "Usuń"; del.style.marginTop = "4px";
+      del.addEventListener("click", function () {
+        var i = S.measLog.indexOf(en); if (i >= 0) { S.measLog.splice(i, 1); save(); logRender(); }
+      });
+      li.appendChild(b); li.appendChild(del); ul.appendChild(li);
+    });
+  }
+  function logSave() {
+    var t = LOG_UL[S.meas] ? S.meas : "lin", ul = $(LOG_UL[t]), lines = [];
+    Array.prototype.forEach.call(ul.querySelectorAll("li button"), function (b) {
+      var s = b.children[2].textContent;
+      lines.push(b.children[0].textContent + ": " + b.children[1].textContent + (s ? " (" + s + ")" : ""));
+    });
+    if (!lines.length) { toast("Brak wyniku do zapisania"); return; }
+    var name = $("measTool").options[$("measTool").selectedIndex].text.replace(/\s*\(.*\)\s*$/, "");
+    if (!S.measLog) S.measLog = [];
+    S.measLog.push({ d: new Date().toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" }), tool: name, note: $("logNote").value.trim(), lines: lines });
+    if (S.measLog.length > 100) S.measLog.shift();
+    save(); logRender(); toast("Zapisano");
+  }
+
   // ---- Działka: powierzchnia i obwód z punktów GPS ---------------------------
   var gpsW = null, gpsLast = null, gpsErr = "";
   function gpsGeom() {
@@ -1831,6 +1880,7 @@
   function measStopAll() { lvStop(); roofStop(); gpsStop(); }
 
   function measUpdate() {
+    logRender();
     var t = S.meas; if (["lin", "poz", "dach", "imp", "gps"].indexOf(t) < 0) t = "lin";
     var lin = t === "lin";
     $("rulerBox").hidden = t !== "lin"; $("levelBox").hidden = t !== "poz"; $("roofBox").hidden = t !== "dach"; $("gpsBox").hidden = t !== "gps"; $("impBox").hidden = t !== "imp";
@@ -1870,6 +1920,16 @@
     });
     ["pvKwp", "pvBase"].forEach(function (id) {
       $(id).addEventListener("input", function () { S[id] = $(id).value; save(); roofRender(); });
+    });
+    $("logSave").addEventListener("click", logSave);
+    $("logCopy").addEventListener("click", function () {
+      var L = S.measLog || [];
+      if (!L.length) { toast("Lista jest pusta"); return; }
+      copy(L.map(logText).join("\n\n"), "Skopiowano " + L.length + " wpisów");
+    });
+    $("logClear").addEventListener("click", function () {
+      if (!(S.measLog || []).length) return;
+      if (window.confirm("Usunąć wszystkie zapisane pomiary?")) { S.measLog = []; save(); logRender(); }
     });
     $("impTap").addEventListener("pointerdown", function (e) { e.preventDefault(); impTap(); });
     $("impUndo").addEventListener("click", function () { impT.pop(); impRender(); });
