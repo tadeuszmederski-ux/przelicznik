@@ -112,12 +112,19 @@
   .hist button { width: 100%; text-align: left; font: inherit; font-size: .85rem; color: var(--muted); background: transparent;
                  border: 0; padding: 6px 4px; cursor: pointer; overflow-wrap: anywhere; }
   /* Figury i bryły */
-  #shapeWrap, #fgazWrap, #fuelWrap { display: flex; flex-direction: column; gap: 12px; }
+  #shapeWrap, #fgazWrap, #fuelWrap, #priceWrap { display: flex; flex-direction: column; gap: 12px; }
   .chk { display: flex; align-items: center; gap: 10px; margin-top: 12px; margin-bottom: 0; text-transform: none; letter-spacing: 0;
          font-size: .9rem; color: var(--ink); cursor: pointer; }
   .chk input { width: 22px; height: 22px; padding: 0; flex: 0 0 auto; }
   .h2 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 0; }
   .fu-list li button .v { font-size: 1rem; }
+  .pr-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 0 12px; margin-bottom: -6px;
+             font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .pr-head span:last-child { text-align: right; }
+  .sr-list li.grp { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 8px 2px 0; }
+  .sr-list .pc { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: baseline; }
+  .sr-list .pc .a { font-size: 1.05rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .sr-list .pc .k { text-align: right; font-size: 1.2rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
   .sh-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
   .sr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
   .sr-list li button { width: 100%; text-align: left; display: grid; gap: 2px; font: inherit; color: var(--ink);
@@ -139,6 +146,7 @@
       <option value="bryly">Figury i bryły</option>
       <option value="fgaz">F-gazy (CO₂e)</option>
       <option value="paliwa">Paliwa (WO i gęstość)</option>
+      <option value="ceny">Ceny energii i paliw</option>
     </select>
   </header>
 
@@ -230,6 +238,10 @@
         <div><label for="fuWo" id="fuWoL">Wartość opałowa</label><input id="fuWo" inputmode="decimal" autocomplete="off"></div>
         <div><label for="fuRho" id="fuRhoL">Gęstość</label><input id="fuRho" inputmode="decimal" autocomplete="off"></div>
       </div>
+      <div style="margin-top:10px">
+        <label for="fuP" id="fuPL">Cena</label>
+        <input id="fuP" inputmode="decimal" autocomplete="off" placeholder="zł">
+      </div>
       <div style="height:10px"></div>
       <button type="button" class="tog" id="fuReset" hidden>Przywróć wartości domyślne</button>
     </section>
@@ -237,6 +249,21 @@
     <p class="note" id="fuNote"></p>
     <h2 class="h2">Zestawienie paliw (stuknij, aby wybrać)</h2>
     <ul class="sr-list fu-list" id="fuTab"></ul>
+  </div>
+
+  <div id="priceWrap" hidden>
+    <section class="card">
+      <label for="prGrp">Odbiorca</label>
+      <select id="prGrp"></select>
+      <div style="height:10px"></div>
+      <button type="button" class="tog" id="prSort" aria-pressed="false">Sortuj od najtańszej (zł/kWh)</button>
+    </section>
+    <div class="pr-head"><span>Cena w jednostce paliwa</span><span>zł/kWh</span></div>
+    <ul class="sr-list" id="prList"></ul>
+    <p class="note" id="prNote"></p>
+    <h2 class="h2">Koszty energii z OZE (orientacyjnie)</h2>
+    <ul class="sr-list" id="ozeList"></ul>
+    <p class="note" id="ozeNote"></p>
   </div>
 
   <p class="note" id="info"></p>
@@ -385,6 +412,7 @@
     { id: "moc",      name: "Moc",          list: MOC,     info: "KM to koń mechaniczny metryczny (735,49875 W), hp to brytyjski (745,7 W)." },
     { id: "paliwa", name: "Paliwa (WO i gęstość)", w: "fuelWrap", info: "" },
     { id: "fgaz", name: "F-gazy (CO₂e)", w: "fgazWrap", info: "" },
+    { id: "ceny", name: "Ceny energii i paliw", w: "priceWrap", info: "" },
     { id: "kalk", name: "Kalkulator", w: "calcBlock", info: "Wyniki są zaokrąglane do 12 cyfr. Procent: x% = x/100. Funkcje kątowe liczą według wybranego DEG (stopnie) lub RAD (radiany). Ans to ostatni wynik. Brakujące nawiasy na końcu są domykane." },
     { id: "bryly", name: "Figury i bryły", w: "shapeWrap", info: "" },
     { id: "temp",     name: "Temperatura",  list: TEMP,    info: "" },
@@ -410,6 +438,7 @@
     val: {},
     fu: "on", fuQ: "1", fuU: "l", fuOv: {},
     fgSet: "ar6", fg: "r410a", fgQ: "1", fgU: "kg", fgOwn: "", fgHerm: false,
+    prGrp: "firmy", prSort: false,
     calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0, lastTab: "energia",
     shape: "walec", shapeVals: {}, dimU: "mm", mat: "stal", dens: "7850", densU: "kg/m³"
   };
@@ -508,9 +537,9 @@
     $("segSel").value = special ? c.id : "jedn";
     $("chips").hidden = special; $("barRow").hidden = special;
     $("convCard").hidden = special; $("results").hidden = special;
-    ["calcBlock", "shapeWrap", "fgazWrap", "fuelWrap"].forEach(function (id) { $(id).hidden = !(special && c.w === id); });
+    ["calcBlock", "shapeWrap", "fgazWrap", "fuelWrap", "priceWrap"].forEach(function (id) { $(id).hidden = !(special && c.w === id); });
     if (special) {
-      var setup = { kalk: setupCalc, bryly: setupShapes, fgaz: setupFgaz, paliwa: setupFuels }[c.id];
+      var setup = { kalk: setupCalc, bryly: setupShapes, fgaz: setupFgaz, paliwa: setupFuels, ceny: setupPrices }[c.id];
       if (setup) setup();
       $("info").textContent = c.info || ""; updateOnlyFavBtn(); return;
     }
@@ -585,9 +614,9 @@
   // Klawisze: [etykieta, wstawiany tekst lub akcja @..., klasa]
   var K_STD = [
     ["C", "@clear", "fn"], ["⌫", "@back", "fn"], ["(", "(", "fn"], [")", ")", "fn"],
-    ["7", "7"], ["8", "8"], ["9", "9"], ["÷", "÷", "op"],
+    ["1", "1"], ["2", "2"], ["3", "3"], ["÷", "÷", "op"],
     ["4", "4"], ["5", "5"], ["6", "6"], ["×", "×", "op"],
-    ["1", "1"], ["2", "2"], ["3", "3"], ["−", "−", "op"],
+    ["7", "7"], ["8", "8"], ["9", "9"], ["−", "−", "op"],
     ["0", "0"], [",", ","], ["%", "%", "fn"], ["+", "+", "op"]
   ];
   var K_SCI = [
@@ -1117,13 +1146,14 @@
     { id: "wbru",   k: "s", n: "Węgiel brunatny",                 wo: 9.0,  rho: 750 },
     { id: "koks",   k: "s", n: "Koks",                            wo: 28.2, rho: 450 },
     { id: "drew",   k: "s", n: "Drewno opałowe (powietrznosuche)", wo: 15.0, rho: 400 },
-    { id: "pell",   k: "s", n: "Pellet drzewny",                  wo: 17.0, rho: 650 }
+    { id: "pell",   k: "s", n: "Pellet drzewny",                  wo: 17.0, rho: 650 },
+    { id: "cng",    k: "g", n: "CNG (sprężony gaz ziemny)",       wo: 35.0, rho: 0.74 }
   ];
   var FU_KIND = { c: "ciecz", g: "gaz", s: "ciało stałe" };
   function fuObj(id) { for (var i = 0; i < FU.length; i++) if (FU[i].id === id) return FU[i]; return FU[0]; }
   function fuVal(f) {
     var o = (S.fuOv && S.fuOv[f.id]) || {};
-    return { wo: o.wo > 0 ? o.wo : f.wo, rho: o.rho > 0 ? o.rho : f.rho };
+    return { wo: o.wo > 0 ? o.wo : f.wo, rho: o.rho > 0 ? o.rho : f.rho, price: o.price > 0 ? o.price : fuDefPrice(f) };
   }
   function fuWoKg(f, v) { return f.k === "g" ? v.wo / v.rho : v.wo; }   // MJ/kg
   function fuUnits(f) {
@@ -1146,13 +1176,19 @@
     $("fuWoL").textContent = "Wartość opałowa [" + (f.k === "g" ? "MJ/m³ n" : "MJ/kg") + "]";
     $("fuRhoL").textContent = (f.k === "s" ? "Gęstość nasypowa" : "Gęstość") + " [kg/m³" + (f.k === "g" ? " n" : "") + "]";
     $("fuWo").value = raw(v.wo); $("fuRho").value = raw(v.rho);
+    $("fuPL").textContent = "Cena paliwa [" + fuPUL(f) + "]";
+    $("fuP").value = v.price > 0 ? raw(v.price) : "";
     $("fuReset").hidden = !(S.fuOv && S.fuOv[f.id]);
   }
   function fuRender() {
     var f = fuObj(S.fu), v = fuVal(f), ul = $("fuRes"); ul.innerHTML = "";
     var woKg = fuWoKg(f, v), q = parse($("fuQ").value);
     var note = FU_KIND[f.k] + ". " + fuDesc(f, v) + ". Wartości orientacyjne: do rozliczeń wpisz dane z faktury dostawcy, świadectwa jakości lub wskaźniki KOBiZE."
-      + (f.k === "g" ? " Objętość gazu w warunkach normalnych (0 °C, 101,325 kPa)." : "");
+      + (f.k === "g" ? " Objętość gazu w warunkach normalnych (0 °C, 101,325 kPa)." : "")
+      + (f.id === "gaz" ? " Gaz rozlicza się w kWh ciepła spalania (ok. 10% więcej niż wg WO), więc koszt liczony wg WO może być nieco zaniżony." : "")
+      + (v.price > 0 ? (prItem(f.id) && !(S.fuOv && S.fuOv[f.id] && S.fuOv[f.id].price) ? " Cena z zakładki Ceny (stan: " + prItem(f.id).d + "), możesz ją zmienić." : "") : " Wpisz cenę paliwa, aby policzyć koszt.");
+    var zlMJ = fuZlMJ(f, v);
+    if (zlMJ > 0) addRes(ul, "Koszt jednostki energii (cena " + fmt(v.price) + " " + fuPUL(f) + ")", fmt(zlMJ * 3.6) + " zł/kWh", fuUnitCostSec(f, v, zlMJ), "", raw(zlMJ * 3.6));
     if (!(isFinite(q) && q > 0)) { $("fuNote").textContent = "Wpisz ilość paliwa. " + note; return; }
     var mult = { kg: 1, t: 1000, l: v.rho / 1000, m3: v.rho, tm3: v.rho * 1000 }[$("fuU").value] || 1;
     var mass = q * mult, vol = mass / v.rho, mj = mass * woKg;
@@ -1162,6 +1198,7 @@
     if (f.k === "c") addRes(ul, "Objętość", fmt(vol * 1000) + " l", fmt(vol) + " m³", "", raw(vol * 1000));
     else if (f.k === "g") addRes(ul, "Objętość", fmt(vol) + " m³ n", fmt(vol / 1000) + " tys. m³ n", "", raw(vol));
     else addRes(ul, "Objętość (nasypowo)", fmt(vol) + " m³", fmt(vol * 1000) + " l", "", raw(vol));
+    if (zlMJ > 0) addRes(ul, "Koszt wpisanej ilości", fmt(mj * zlMJ) + " zł", "Cena jednostkowa: " + fmt(v.price) + " " + fuPUL(f), "mass", raw(mj * zlMJ));
     $("fuNote").textContent = note;
   }
   function fuTable() {
@@ -1198,10 +1235,221 @@
     $("fuU").addEventListener("change", function () { S.fuU = $("fuU").value; save(); fuRender(); });
     $("fuWo").addEventListener("input", function () { fuSetOv("wo", "fuWo"); });
     $("fuRho").addEventListener("input", function () { fuSetOv("rho", "fuRho"); });
+    $("fuP").addEventListener("input", function () { fuSetOv("price", "fuP"); });
     $("fuReset").addEventListener("click", function () {
       if (S.fuOv) delete S.fuOv[S.fu];
       save(); fuFields(); fuRender(); fuTable();
     });
+  }
+
+  // ---- Ceny energii i paliw -------------------------------------------------
+  // Aktualne dane są w pliku ceny.json, który co tydzień odświeża zadanie GitHub Actions
+  // (Biuletyn Naftowy UE: paliwa, Eurostat: energia elektryczna i gaz). Poniżej zapis wbudowany,
+  // używany tylko wtedy, gdy aplikacja nie ma jeszcze pobranych cen (np. pierwsze uruchomienie bez internetu).
+  var CENY = {
+    "paliwa": {
+      "data": "2026-11-16", "kurs_eur_pln": 4.403,
+      "benz": { "brutto": 5.954, "netto": 4.84, "vat": 23 },
+      "on":   { "brutto": 7.381, "netto": 6.001, "vat": 23 },
+      "olop": { "brutto": 6.957, "netto": 5.656, "vat": 23 },
+      "lpg":  { "brutto": 3.955, "netto": 3.215, "vat": 23 }
+    },
+    "energia": {
+      "el": {
+        "gd":    { "cena": 1.2724, "okres": "2026-S1", "opis": "DC: 2 500–4 999 kWh/rok, z podatkami i opłatami" },
+        "firmy": { "cena": 0.878, "okres": "2026-S1", "opis": "IC: 500–1 999 MWh/rok, bez VAT i podatków odliczalnych" }
+      },
+      "gaz": {
+        "gd":    { "cena": null, "okres": null, "opis": "brak danych w Eurostacie dla Polski (dane poufne): D2: 20–199 GJ/rok, z podatkami i opłatami" },
+        "firmy": { "cena": 0.301, "okres": "2026-S1", "opis": "I2: 1 000–9 999 GJ/rok, bez VAT i podatków odliczalnych" }
+      }
+    },
+    "reczne": {
+      "cng": { "cena": 7.81, "jedn": "zł/m³", "data": "III kwartał 2026", "zrodlo": "gov.pl, porównanie średnich cen paliw alternatywnych (art. 41a ustawy o elektromobilności)" },
+      "pellet": { "cena": 2166.01, "jedn": "zł/t", "data": "2026-11-23", "zrodlo": "Muratordom.pl, średnia z ofert producentów i marketów (listopad 2026)", "uwaga": "nie podano, czy cena zawiera VAT" }
+    },
+    "oze": [
+      { "grp": "Fotowoltaika", "n": "PV powyżej 1 MW: cena referencyjna w aukcji OZE 2026", "min": 389, "max": null, "u": "zł/MWh", "src": "URE, aukcja AZ/7/2026 (za gramwzielone.pl, 17.11.2026). Maksymalna cena oferty, ustalona rozporządzeniem Min. Klimatu z 8.11.2023, nie koszt wytworzenia." },
+      { "grp": "Fotowoltaika", "n": "PV powyżej 1 MW: ceny wygrane w aukcji 2026", "min": 180, "max": 327.77, "u": "zł/MWh", "src": "URE, aukcja AZ/7/2026 (za gramwzielone.pl, 17.11.2026). Ceny ofert wygrywających projektów." },
+      { "grp": "Fotowoltaika", "n": "PV do 1 MW: cena referencyjna w aukcji 2026", "min": 414, "max": null, "u": "zł/MWh", "src": "URE, aukcja AZ/6/2026 (za gramwzielone.pl, 17.11.2026). Maksymalna cena oferty." },
+      { "grp": "Fotowoltaika", "n": "PV do 1 MW: ceny wygrane w aukcji 2026", "min": 320, "max": 377.77, "u": "zł/MWh", "src": "URE, aukcja AZ/6/2026 (za gramwzielone.pl, 17.11.2026). Wygrały tylko projekty PV." },
+      { "grp": "Fotowoltaika", "n": "PV, średnia światowa (LCOE 2025)", "min": 44, "max": null, "u": "USD/MWh", "src": "IRENA, Renewable Power Generation Costs in 2025 (za gramwzielone.pl, 24.07.2026). Średnia ważona dla świata, nie dla Polski." },
+      { "grp": "Fotowoltaika", "n": "PV duże instalacje w Niemczech (LCOE 2025–2026)", "min": 41, "max": 69, "u": "€/MWh", "src": "Fraunhofer ISE, nowe instalacje w Niemczech (za globenergia.pl, 20.08.2026)." },
+      { "grp": "Wiatr lądowy", "n": "Wiatr lądowy: cena referencyjna w aukcji 2026", "min": 324, "max": null, "u": "zł/MWh", "src": "URE, aukcje 2026 (za gramwzielone.pl, 17.11.2026). Maksymalna cena oferty." },
+      { "grp": "Wiatr lądowy", "n": "Wiatr lądowy: ceny wygrane w aukcji 2026", "min": 323.87, "max": 324, "u": "zł/MWh", "src": "URE, aukcje 2026 (za gramwzielone.pl, 17.11.2026). Praktycznie na poziomie ceny referencyjnej." },
+      { "grp": "Wiatr lądowy", "n": "Wiatr lądowy, średnia światowa (LCOE 2025)", "min": 33, "max": null, "u": "USD/MWh", "src": "IRENA, Renewable Power Generation Costs in 2025 (za gramwzielone.pl, 24.07.2026). Średnia ważona dla świata." },
+      { "grp": "Wiatr lądowy", "n": "Wiatr lądowy w Niemczech (LCOE 2025–2026)", "min": 43, "max": 92, "u": "€/MWh", "src": "Fraunhofer ISE, nowe instalacje w Niemczech (za globenergia.pl, 20.08.2026)." },
+      { "grp": "Biogazownie", "n": "Biogaz rolniczy, pozostały biogaz i biomasa: aukcje 2026", "min": null, "max": null, "u": "zł/MWh", "src": "URE 2026: aukcje zakończone bez rozstrzygnięcia (mniej niż 3 oferty), brak cen wygranych. Cen referencyjnych na 2026 nie potwierdziły źródła." },
+      { "grp": "Biogazownie", "n": "Bioenergia (biogaz, biometan), średnia światowa (LCOE 2025)", "min": 86, "max": null, "u": "USD/MWh", "src": "IRENA, Renewable Power Generation Costs in 2025 (za gramwzielone.pl, 24.07.2026). Dane dla bioenergii ogółem, nie tylko biogazu." },
+      { "grp": "Biometanownie", "n": "Biometan: szacunkowy koszt wytwarzania", "min": 430, "max": null, "od": true, "u": "zł/MWh", "src": "Forum Energii, Molekuły niezależności (za globenergia.pl, 23.03.2026). Energia zawarta w biometanie (paliwo gazowe), nie energia elektryczna." },
+      { "grp": "Biometanownie", "n": "Biometan: cena referencyjna (podstawa wsparcia)", "min": 545, "max": null, "u": "zł/MWh", "src": "Polska Organizacja Biometanu (za gramwzielone.pl, 02.06.2026). Energia zawarta w biometanie." }
+    ],
+    "wygenerowano": "2026-11-24"
+  };
+  var CENY_OZE = CENY.oze;         // zapas, gdy pobrany plik nie ma sekcji "oze"
+  var CENY_RECZNE = CENY.reczne;   // zapas, gdy pobrany plik nie ma sekcji "reczne"
+  var USD_PLN = 3.95;              // kurs użyty w źródle (IRENA za gramwzielone.pl) do przeliczeń USD na zł
+  var CENY_SRC = "zapis wbudowany w aplikację";
+  function okCeny(c) {
+    try {
+      var P = c.paliwa, E = c.energia;
+      var ok = typeof c.wygenerowano === "string" && /^\d{4}-\d{2}-\d{2}$/.test(c.wygenerowano);
+      ["benz", "on", "olop", "lpg"].forEach(function (k) {
+        if (!(P[k].brutto > 1 && P[k].brutto < 30 && P[k].netto > 0.5 && P[k].netto < 30)) ok = false;
+      });
+      ["el", "gaz"].forEach(function (k) {
+        ["gd", "firmy"].forEach(function (g) {
+          var x = E[k][g];
+          if (!x || (x.cena !== null && !(x.cena > 0 && x.cena < 10))) ok = false;
+        });
+      });
+      return ok;
+    } catch (e) { return false; }
+  }
+  function plData(iso) { return iso ? iso.slice(8, 10) + "." + iso.slice(5, 7) + "." + iso.slice(0, 4) : ""; }
+  function plOkres(p) { var m = /^(\d{4})-S([12])$/.exec(p || ""); return m ? (m[2] === "1" ? "I" : "II") + " półrocze " + m[1] : (p || ""); }
+  function prItems() {
+    var P = CENY.paliwa, E = CENY.energia, R = CENY.reczne || {}, gd = S.prGrp === "gd", g = gd ? "gd" : "firmy";
+    var basis = gd ? "z VAT" : "bez VAT, z akcyzą", d = plData(P.data);
+    function fuel(id, n) { return { id: id, fu: id, n: n, u: "zł/l", v: gd ? P[id].brutto : P[id].netto, d: d, basis: basis }; }
+    function en(id, n) { var x = E[id][g]; return { id: id, fu: id === "gaz" ? "gaz" : null, n: n, u: "zł/kWh", v: x.cena, d: plOkres(x.okres), basis: x.opis }; }
+    function man(key, id, n, u) {   // wpisy ręczne: jedna cena krajowa, bez podziału na odbiorców
+      var x = R[key];
+      return { id: id, fu: id, n: n, u: u, v: x.cena, d: /^\d{4}-\d{2}-\d{2}$/.test(x.data) ? plData(x.data) : x.data,
+               basis: "wpis ręczny, nie odświeża się sam: " + x.zrodlo + (x.uwaga ? "; " + x.uwaga : "") };
+    }
+    var a = [fuel("benz", "Benzyna 95"), fuel("on", "Olej napędowy"), fuel("lpg", "LPG (autogaz)"), fuel("olop", "Olej opałowy")];
+    if (R.cng) a.push(man("cng", "cng", "CNG (sprężony gaz ziemny)", "zł/m³ n"));
+    if (R.pellet) a.push(man("pellet", "pell", "Pellet drzewny", "zł/t"));
+    a.push(en("el", "Energia elektryczna"), en("gaz", "Gaz ziemny"));
+    return a;
+  }
+  // Jednostka, w której podaje się cenę danego paliwa (domyślnie zł/l).
+  var PU = { gaz: "kWh", biogaz: "m3n", wodor: "kg", wkam: "t", ekog: "t", wbru: "t", koks: "t", drew: "t", pell: "t", cng: "m3n" };
+  var PUL = { l: "zł/l", kg: "zł/kg", t: "zł/t", kWh: "zł/kWh", m3n: "zł/m³ n" };
+  function fuPU(f) { return PU[f.id] || "l"; }
+  function fuPUL(f) { return PUL[fuPU(f)]; }
+  function prItem(id) { var a = prItems(); for (var i = 0; i < a.length; i++) if (a[i].id === id) return a[i]; return null; }
+  function prPrice(it) { return it.v > 0 ? it.v : 0; }
+  function fuDefPrice(f) { var it = prItem(f.id); return it ? prPrice(it) : 0; }
+  function fuMJperPU(f, v) {      // energia [MJ] w jednostce, w której podana jest cena
+    var woKg = fuWoKg(f, v), pu = fuPU(f);
+    if (pu === "l") return woKg * v.rho / 1000;
+    if (pu === "kg") return woKg;
+    if (pu === "t") return woKg * 1000;
+    if (pu === "kWh") return 3.6;
+    return v.wo;                  // m³ n
+  }
+  function fuZlMJ(f, v) { return v.price > 0 ? v.price / fuMJperPU(f, v) : 0; }
+  function fuUnitCostSec(f, v, z) {
+    var woKg = fuWoKg(f, v);
+    var p = [fmt(z * 1000) + " zł/GJ", fmt(z * 3600) + " zł/MWh", fmt(z * woKg) + " zł/kg", fmt(z * woKg * 1000) + " zł/t"];
+    if (f.k === "c") p.push(fmt(z * woKg * v.rho / 1000) + " zł/l");
+    else if (f.k === "g") p.push(fmt(z * v.wo) + " zł/m³ n");
+    else p.push(fmt(z * woKg * v.rho) + " zł/m³ (nasypowo)");
+    return p.join("  ·  ");
+  }
+  function prRender() {
+    var ul = $("prList"); ul.innerHTML = "";
+    var who = S.prGrp === "gd" ? " (gospodarstwa domowe)" : " (firmy)";
+    // z = cena w zł za 1 MJ energii (wg wartości opałowej), z niej liczone zł/kWh, zł/MWh i zł/GJ
+    var rows = prItems().map(function (it) {
+      var z = 0;
+      if (it.v > 0) { var f = it.fu ? fuObj(it.fu) : null; z = it.v / (f ? fuMJperPU(f, fuVal(f)) : 3.6); }
+      return { it: it, z: z };
+    });
+    if (S.prSort) rows.sort(function (a, b) { return (a.z > 0 ? a.z : 1e9) - (b.z > 0 ? b.z : 1e9); });
+    rows.forEach(function (r) {
+      var it = r.it, z = r.z, li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = '<span class="t"></span><span class="pc"><span class="a"></span><span class="k"></span></span><span class="s"></span>';
+      b.children[0].textContent = it.n + who;
+      if (z > 0) {
+        b.querySelector(".a").textContent = fmt(it.v) + " " + it.u;
+        b.querySelector(".k").textContent = fmt(z * 3.6) + " zł/kWh";
+        b.children[2].textContent = fmt(z * 3600) + " zł/MWh  ·  " + fmt(z * 1000) + " zł/GJ  ·  stan: " + it.d + "  ·  " + it.basis;
+        b.addEventListener("click", function () { copy(raw(it.v)); });
+      } else {
+        b.querySelector(".a").textContent = "brak danych";
+        b.querySelector(".k").textContent = "–";
+        b.children[2].textContent = it.basis;
+      }
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  // Koszty energii z OZE: wartości w zł/MWh, USD/MWh lub €/MWh przeliczane na zł/kWh.
+  function ozeRender() {
+    var ul = $("ozeList"); ul.innerHTML = "";
+    var kurs = (CENY.paliwa && CENY.paliwa.kurs_eur_pln) || 4.4, last = "";
+    function rng(a, b) { return (b === null || b === undefined || b === a) ? fmt(a) : fmt(a) + "–" + fmt(b); }
+    function r3(x) { return Math.round(x * 1000) / 1000; }
+    (CENY.oze || []).forEach(function (x) {
+      if (x.grp !== last) {
+        var h = document.createElement("li"); h.className = "grp"; h.textContent = x.grp; ul.appendChild(h); last = x.grp;
+      }
+      var li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = '<span class="t"></span><span class="pc"><span class="a"></span><span class="k"></span></span><span class="s"></span>';
+      b.children[0].textContent = x.n;
+      if (x.min === null || x.min === undefined) {
+        b.querySelector(".a").textContent = "brak danych";
+        b.querySelector(".k").textContent = "–";
+        b.children[2].textContent = x.src;
+      } else {
+        var f = x.u === "€/MWh" ? kurs : (x.u === "USD/MWh" ? USD_PLN : 1);
+        var lo = x.min * f, hi = (x.max === null || x.max === undefined) ? lo : x.max * f, od = x.od ? "ponad " : "";
+        b.querySelector(".a").textContent = od + rng(x.min, x.max) + " " + x.u;
+        b.querySelector(".k").textContent = od + rng(r3(lo / 1000), r3(hi / 1000)) + " zł/kWh";
+        b.children[2].textContent = (x.u === "zł/MWh" ? "" : "= " + rng(Math.round(lo * 10) / 10, Math.round(hi * 10) / 10) + " zł/MWh  ·  ") + x.src;
+        b.addEventListener("click", function () { copy(raw(r3(lo / 1000))); });
+      }
+      li.appendChild(b); ul.appendChild(li);
+    });
+    $("ozeNote").textContent = "Ceny referencyjne w aukcjach to maksymalne ceny ofert, ceny wygrane to ceny sprzedaży energii w systemie aukcyjnym, a LCOE to średni koszt wytworzenia w całym okresie życia instalacji. "
+      + "To trzy różne wielkości, więc nie należy ich traktować jako jednej ceny. Dolary przeliczono po " + fmt(USD_PLN) + " zł (kurs ze źródła), euro po kursie z biuletynu naftowego (" + fmt(kurs) + " zł). "
+      + "Źródła nie podają polskiego LCOE dla biogazowni, a aukcje na biogaz w 2026 r. zakończyły się bez rozstrzygnięcia. Dla własnej instalacji lepsza jest cena z oferty wykonawcy. "
+      + "Wpisy są ręczne i nie odświeżają się same.";
+  }
+  function setupPrices() {
+    fillSelect($("prGrp"), [{ v: "firmy", t: "Firmy" }, { v: "gd", t: "Gospodarstwa domowe" }], S.prGrp);
+    $("prSort").setAttribute("aria-pressed", S.prSort ? "true" : "false");
+    prRender(); ozeRender();
+    $("prNote").innerHTML = 'Kolumna zł/kWh jest liczona wg wartości opałowej paliwa (dla gazu i energii elektrycznej jest to cena za kWh podana przez źródło). Źródła: <a href="https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en" target="_blank" rel="noopener">Biuletyn Naftowy UE</a> (paliwa, kurs z biuletynu) i '
+      + '<a href="https://ec.europa.eu/eurostat/databrowser/view/nrg_pc_204/default/table" target="_blank" rel="noopener">Eurostat</a> (energia elektryczna i gaz, PLN, ostatni dostępny okres). '
+      + "Gospodarstwa domowe: ceny z VAT. Firmy: paliwa bez VAT (z akcyzą), energia i gaz bez VAT i podatków odliczalnych, w pasmach podanych przy pozycjach. "
+      + "Gaz dla gospodarstw domowych w Polsce Eurostat oznacza jako poufny, więc tej ceny brak (wpisz własną w segmencie Paliwa). "
+      + "CNG i pellet to wpisy ręczne (jedna cena krajowa, bez podziału na odbiorców), które nie odświeżają się same. "
+      + "Dane z pliku ceny.json, stan z " + plData(CENY.wygenerowano) + " (" + CENY_SRC + "). Plik odświeża się automatycznie raz w tygodniu. "
+      + "Wybrana grupa odbiorców wpływa też na domyślną cenę w segmencie Paliwa.";
+  }
+  function initPrices() {
+    $("prGrp").addEventListener("change", function () { S.prGrp = $("prGrp").value; save(); prRender(); });
+    $("prSort").addEventListener("click", function () {
+      S.prSort = !S.prSort; save(); $("prSort").setAttribute("aria-pressed", S.prSort ? "true" : "false"); prRender();
+    });
+  }
+  // Odczyt cen przy starcie: najpierw kopia zapamiętana na telefonie, potem świeży plik z internetu (jeśli dostępny).
+  function loadPrices() {
+    try {
+      var c0 = JSON.parse(localStorage.getItem("ceny-cache") || "null");
+      if (c0 && okCeny(c0) && c0.wygenerowano >= CENY.wygenerowano) {
+        if (!c0.reczne) c0.reczne = CENY_RECZNE;
+        if (!c0.oze) c0.oze = CENY_OZE;
+        CENY = c0; CENY_SRC = "zapamiętane na telefonie";
+      }
+    } catch (e) {}
+    if (location.protocol === "file:" || !window.fetch) return;
+    fetch("ceny.json?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("http")); })
+      .then(function (c) {
+        if (!okCeny(c)) return;
+        if (!c.reczne) c.reczne = CENY_RECZNE;
+        if (!c.oze) c.oze = CENY_OZE;
+        CENY = c; CENY_SRC = "pobrane z internetu";
+        try { localStorage.setItem("ceny-cache", JSON.stringify(c)); } catch (e) {}
+        if (S.tab === "ceny" || S.tab === "paliwa") setupTab();
+      })
+      .catch(function () {});
   }
 
   // ---- Zdarzenia -----------------------------------------------------------
@@ -1228,7 +1476,7 @@
   });
 
   // ---- Start ---------------------------------------------------------------
-  load(); initCalc(); initShapes(); initFgaz(); initFuels(); setupTab(); render();
+  load(); initCalc(); initShapes(); initFgaz(); initFuels(); initPrices(); loadPrices(); setupTab(); render();
 
   var online = function () { $("status").textContent = navigator.onLine ? "" : "tryb offline"; };
   window.addEventListener("online", online); window.addEventListener("offline", online); online();

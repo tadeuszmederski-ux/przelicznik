@@ -1,0 +1,102 @@
+{
+  "paliwa": {
+    "data": "2026-11-16",
+    "kurs_eur_pln": 4.403,
+    "benz": {
+      "brutto": 5.954,
+      "netto": 4.84,
+      "vat": 23.0
+    },
+    "on": {
+      "brutto": 7.381,
+      "netto": 6.001,
+      "vat": 23.0
+    },
+    "olop": {
+      "brutto": 6.957,
+      "netto": 5.656,
+      "vat": 23.0
+    },
+    "lpg": {
+      "brutto": 3.955,
+      "netto": 3.215,
+      "vat": 23.0
+    }
+  },
+  "energia": {
+    "el": {
+      "gd": {
+        "cena": 1.2724,
+        "okres": "2026-S1",
+        "opis": "DC: 2 500–4 999 kWh/rok, z podatkami i opłatami"
+      },
+      "firmy": {
+        "cena": 0.878,
+        "okres": "2026-S1",
+        "opis": "IC: 500–1 999 MWh/rok, bez VAT i podatków odliczalnych"
+      }
+    },
+    "gaz": {
+      "gd": {
+        "cena": null,
+        "okres": null,
+        "opis": "brak danych w Eurostacie dla Polski (dane poufne): D2: 20–199 GJ/rok, z podatkami i opłatami"
+      },
+      "firmy": {
+        "cena": 0.301,
+        "okres": "2026-S1",
+        "opis": "I2: 1 000–9 999 GJ/rok, bez VAT i podatków odliczalnych"
+      }
+    }
+  },
+  "zrodla": {
+    "paliwa": "Biuletyn Naftowy UE (Weekly Oil Bulletin), ceny konsumenckie w Polsce, kurs z biuletynu",
+    "energia": "Eurostat nrg_pc_202..205, ceny w PLN, ostatni dostępny okres"
+  },
+  "reczne": {
+    "cng": {
+      "cena": 7.81,
+      "jedn": "zł/m³",
+      "data": "III kwartał 2026",
+      "zrodlo": "gov.pl, porównanie średnich cen paliw alternatywnych (art. 41a ustawy o elektromobilności)"
+    },
+    "pellet": {
+      "cena": 2166.01,
+      "jedn": "zł/t",
+      "data": "2026-11-23",
+      "zrodlo": "Muratordom.pl, średnia z ofert producentów i marketów (listopad 2026)",
+      "uwaga": "nie podano, czy cena zawiera VAT"
+    }
+  },
+  "oze": [
+    { "grp": "Fotowoltaika", "n": "PV powyżej 1 MW: cena referencyjna w aukcji OZE 2026", "min": 389, "max": null, "u": "zł/MWh",
+      "src": "URE, aukcja AZ/7/2026 (za gramwzielone.pl, 17.11.2026). Maksymalna cena oferty, ustalona rozporządzeniem Min. Klimatu z 8.11.2023, nie koszt wytworzenia." },
+    { "grp": "Fotowoltaika", "n": "PV powyżej 1 MW: ceny wygrane w aukcji 2026", "min": 180, "max": 327.77, "u": "zł/MWh",
+      "src": "URE, aukcja AZ/7/2026 (za gramwzielone.pl, 17.11.2026). Ceny ofert wygrywających projektów." },
+    { "grp": "Fotowoltaika", "n": "PV do 1 MW: cena referencyjna w aukcji 2026", "min": 414, "max": null, "u": "zł/MWh",
+      "src": "URE, aukcja AZ/6/2026 (za gramwzielone.pl, 17.11.2026). Maksymalna cena oferty." },
+    { "grp": "Fotowoltaika", "n": "PV do 1 MW: ceny wygrane w aukcji 2026", "min": 320, "max": 377.77, "u": "zł/MWh",
+      "src": "URE, aukcja AZ/6/2026 (za gramwzielone.pl, 17.11.2026). Wygrały tylko projekty PV." },
+    { "grp": "Fotowoltaika", "n": "PV, średnia światowa (LCOE 2025)", "min": 44, "max": null, "u": "USD/MWh",
+      "src": "IRENA, Renewable Power Generation Costs in 2025 (za gramwzielone.pl, 24.07.2026). Średnia ważona dla świata, nie dla Polski." },
+    { "grp": "Fotowoltaika", "n": "PV duże instalacje w Niemczech (LCOE 2025–2026)", "min": 41, "max": 69, "u": "€/MWh",
+      "src": "Fraunhofer ISE, nowe instalacje w Niemczech (za globenergia.pl, 20.08.2026)." },
+    { "grp": "Wiatr lądowy", "n": "Wiatr lądowy: cena referencyjna w aukcji 2026", "min": 324, "max": null, "u": "zł/MWh",
+      "src": "URE, aukcje 2026 (za gramwzielone.pl, 17.11.2026). Maksymalna cena oferty." },
+    { "grp": "Wiatr lądowy", "n": "Wiatr lądowy: ceny wygrane w aukcji 2026", "min": 323.87, "max": 324, "u": "zł/MWh",
+      "src": "URE, aukcje 2026 (za gramwzielone.pl, 17.11.2026). Praktycznie na poziomie ceny referencyjnej." },
+    { "grp": "Wiatr lądowy", "n": "Wiatr lądowy, średnia światowa (LCOE 2025)", "min": 33, "max": null, "u": "USD/MWh",
+      "src": "IRENA, Renewable Power Generation Costs in 2025 (za gramwzielone.pl, 24.07.2026). Średnia ważona dla świata." },
+    { "grp": "Wiatr lądowy", "n": "Wiatr lądowy w Niemczech (LCOE 2025–2026)", "min": 43, "max": 92, "u": "€/MWh",
+      "src": "Fraunhofer ISE, nowe instalacje w Niemczech (za globenergia.pl, 20.08.2026)." },
+    { "grp": "Biogazownie", "n": "Biogaz rolniczy, pozostały biogaz i biomasa: aukcje 2026", "min": null, "max": null, "u": "zł/MWh",
+      "src": "URE 2026: aukcje zakończone bez rozstrzygnięcia (mniej niż 3 oferty), brak cen wygranych. Cen referencyjnych na 2026 nie potwierdziły źródła." },
+    { "grp": "Biogazownie", "n": "Bioenergia (biogaz, biometan), średnia światowa (LCOE 2025)", "min": 86, "max": null, "u": "USD/MWh",
+      "src": "IRENA, Renewable Power Generation Costs in 2025 (za gramwzielone.pl, 24.07.2026). Dane dla bioenergii ogółem, nie tylko biogazu." },
+    { "grp": "Biometanownie", "n": "Biometan: szacunkowy koszt wytwarzania", "min": 430, "max": null, "od": true, "u": "zł/MWh",
+      "src": "Forum Energii, Molekuły niezależności (za globenergia.pl, 23.03.2026). Energia zawarta w biometanie (paliwo gazowe), nie energia elektryczna." },
+    { "grp": "Biometanownie", "n": "Biometan: cena referencyjna (podstawa wsparcia)", "min": 545, "max": null, "u": "zł/MWh",
+      "src": "Polska Organizacja Biometanu (za gramwzielone.pl, 02.06.2026). Energia zawarta w biometanie." }
+  ],
+  "wygenerowano": "2026-11-24"
+}

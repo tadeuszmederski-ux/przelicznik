@@ -1,5 +1,5 @@
 // Service worker: zapisuje aplikację w pamięci telefonu, żeby działała bez internetu.
-var CACHE = "przelicznik-energii-v7";
+var CACHE = "przelicznik-energii-v11";
 var FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", function (e) {
@@ -16,6 +16,17 @@ self.addEventListener("activate", function (e) {
 
 self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
+  // Plik z cenami: najpierw internet (świeże dane), a bez internetu ostatnia zapamiętana kopia.
+  if (new URL(e.request.url).pathname.slice(-9) === "ceny.json") {
+    e.respondWith(
+      fetch(e.request).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put("./ceny.json", copy); });
+        return res;
+      }).catch(function () { return caches.match("./ceny.json"); })
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(function (hit) {
       return hit || fetch(e.request).then(function (res) {
