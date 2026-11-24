@@ -155,6 +155,7 @@
   #impTap { display: block; width: 100%; min-height: 130px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink);
             font: inherit; font-size: 1.1rem; font-weight: 700; touch-action: manipulation; cursor: pointer; user-select: none; -webkit-user-select: none; }
   #impTap:active { filter: brightness(.88); }
+  #angBig, #dbBig { text-align: center; font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 10px 0; }
   #lvEdge { text-align: center; font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 10px 0; }
   [hidden] { display: none !important; }
 </style>
@@ -298,6 +299,7 @@
         <option value="poz">Poziomica i kątomierz</option>
         <option value="dach">Dach pod PV (azymut i nachylenie)</option>
         <option value="imp">Licznik impulsów (moc z diody licznika)</option>
+        <option value="hal">Miernik hałasu (mikrofon, orientacyjny)</option>
         <option value="gps">Działka (powierzchnia z GPS)</option>
       </select>
     </section>
@@ -326,6 +328,7 @@
         <select id="lvMode">
           <option value="flat">Płasko na powierzchni (poziomica)</option>
           <option value="edge">Dłuższą krawędzią do przedmiotu (kątomierz, kąt nad poziomem)</option>
+          <option value="angle">Kąt między dwiema krawędziami (ekran pionowo)</option>
         </select>
         <div style="height:10px"></div>
         <button type="button" class="tog" id="lvZero">Zeruj (ustaw bieżące położenie jako zero)</button>
@@ -334,6 +337,14 @@
         <div id="lvArea"><div class="hl"></div><div class="vl"></div><div class="ring"></div><div id="lvBub"></div></div>
       </div>
       <div id="lvEdgeBox" hidden><div id="lvEdge">–</div></div>
+      <div id="lvAngBox" hidden>
+        <div id="angBig">–</div>
+        <div class="rl-row">
+          <button type="button" class="tog" id="angA">Zapamiętaj ramię 1</button>
+          <button type="button" class="tog" id="angB">Zapamiętaj ramię 2</button>
+          <button type="button" class="tog" id="angC">Wyczyść</button>
+        </div>
+      </div>
       <ul class="sr-list" id="lvRes" aria-live="polite"></ul>
       <p class="note" id="lvNote"></p>
     </div>
@@ -363,6 +374,20 @@
       </section>
       <ul class="sr-list" id="impRes" aria-live="polite"></ul>
       <p class="note" id="impNote"></p>
+    </div>
+
+    <div id="halBox" hidden>
+      <section class="card">
+        <button type="button" class="tog" id="dbStart" aria-pressed="false">Włącz pomiar (mikrofon)</button>
+        <div class="rl-row"><button type="button" class="tog" id="dbReset">Wyzeruj Leq, min i max</button></div>
+        <div class="sh-grid">
+          <div><label for="dbRef">Wartość z miernika wzorcowego [dB]</label><input id="dbRef" inputmode="decimal" autocomplete="off"></div>
+          <div style="display:flex;align-items:flex-end"><button type="button" class="tog" id="dbCal">Skalibruj do tej wartości</button></div>
+        </div>
+      </section>
+      <div id="dbBig">–</div>
+      <ul class="sr-list" id="dbRes" aria-live="polite"></ul>
+      <p class="note" id="dbNote"></p>
     </div>
 
     <div id="gpsBox" hidden>
@@ -567,7 +592,7 @@
     prGrp: "firmy", prSort: false,
     calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0, lastTab: "energia",
     shape: "walec", shapeVals: {}, dimU: "mm", mat: "stal", dens: "7850", densU: "kg/m³",
-    meas: "lin", rlK: 0, lvMode: "flat", measLog: [], impC: "1000", pvKwp: "10", pvBase: "1000", gpsPts: []
+    meas: "lin", rlK: 0, lvMode: "flat", dbOff: null, measLog: [], impC: "1000", pvKwp: "10", pvBase: "1000", gpsPts: []
   };
   var KEY = "przelicznik-inzynierski-v1";
   function load() {
@@ -1679,6 +1704,7 @@
     var f = 0.25; lvT.x += (a.x - lvT.x) * f; lvT.y += (a.y - lvT.y) * f; lvT.z += (a.z - lvT.z) * f; lvT.got = true;
     lvRender();
   }
+  var angP = [null, null], lvAngCur = 0;
   function lvAngles() {
     var t = lvT, rad = 180 / Math.PI, z = S.lvZero || {};
     var ax = Math.atan2(t.x, Math.sqrt(t.y * t.y + t.z * t.z)) * rad;
@@ -1692,7 +1718,20 @@
     if (!lvT) return;
     var ang = lvAngles(), ul = $("lvRes"), deg = "°";
     ul.innerHTML = "";
-    if (S.lvMode === "edge") {
+    if (S.lvMode === "angle") {
+      var q = lvT, gq = Math.sqrt(q.x * q.x + q.y * q.y + q.z * q.z) || 1, th = Math.atan2(q.x, q.y) * 180 / Math.PI;
+      $("angBig").textContent = mm1(th) + deg;
+      var notV = Math.abs(q.z) / gq > 0.35;
+      lvAngCur = th;
+      if (angP[0] !== null) addRes(ul, "Ramię 1", mm1(angP[0]) + deg, "", "", mm1(angP[0]));
+      if (angP[1] !== null) addRes(ul, "Ramię 2", mm1(angP[1]) + deg, "", "", mm1(angP[1]));
+      if (angP[0] !== null && angP[1] !== null) {
+        var dd = Math.abs(angP[1] - angP[0]) % 360; if (dd > 180) dd = 360 - dd;
+        addRes(ul, "Kąt między ramionami", mm1(dd) + deg, "dopełnienie do 180°: " + mm1(180 - dd) + deg + "  ·  do 360°: " + mm1(360 - dd) + deg, "mass", mm1(dd));
+      }
+      $("lvNote").textContent = notV ? "Telefon jest pochylony. Trzymaj ekran pionowo (w płaszczyźnie kąta), inaczej odczyt będzie nierzetelny." :
+        "Ustaw ekran pionowo w płaszczyźnie mierzonego kąta. Przyłóż dłuższą krawędź do pierwszego ramienia (górą od wierzchołka) i stuknij „Zapamiętaj ramię 1”, potem to samo dla ramienia 2.";
+    } else if (S.lvMode === "edge") {
       var e = ang.edge, ae = Math.abs(e);
       $("lvEdge").textContent = (e > 0.05 ? "+" : "") + mm1(e) + deg;
       addRes(ul, "Kąt od poziomu", mm1(ae) + deg, ae >= 89.5 ? "krawędź prawie pionowo" : "nachylenie " + mm1(Math.tan(ae / 57.29578) * 100) + " %  ·  " + mm1(Math.tan(ae / 57.29578) * 1000) + " mm/m", "", mm1(ae));
@@ -1796,8 +1835,61 @@
   }
   function impTap() { impT.push(performance.now()); impRender(); if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} } }
 
+  // ---- Miernik hałasu: poziom ważony A z widma FFT mikrofonu --------------------
+  // Mikrofon telefonu nie jest skalibrowany, dlatego bez kalibracji (wzorzec) wynik jest tylko orientacyjny.
+  var dbCtx = null, dbStream = null, dbAn = null, dbTimer = null, dbF = null, dbStat = null, dbRecent = [];
+  function dbOff() { return typeof S.dbOff === "number" && isFinite(S.dbOff) ? S.dbOff : 120; }
+  function dbRender() {
+    var ul = $("dbRes"); ul.innerHTML = "";
+    var st = dbStat;
+    if (!st || !st.n) { $("dbBig").textContent = "–"; $("dbNote").textContent = "Stuknij „Włącz pomiar” i zezwól na mikrofon. Trzymaj telefon w jednym miejscu, mikrofonem w stronę źródła dźwięku, bez zasłaniania dolnej krawędzi."; return; }
+    var leq = 10 * Math.log10(st.sum / st.n), el = (Date.now() - st.t0) / 1000;
+    $("dbBig").textContent = mm1(st.last) + " dB(A)";
+    addRes(ul, "Poziom równoważny Leq", mm1(leq) + " dB(A)", "średnia energetyczna od wyzerowania  ·  czas " + Math.round(el) + " s", "mass", mm1(leq));
+    addRes(ul, "Minimum / maksimum", mm1(st.min) + " / " + mm1(st.max) + " dB(A)", "wartości chwilowe (krok ok. 0,25 s)", "", mm1(st.min) + " / " + mm1(st.max));
+    $("dbNote").textContent = (S.dbOff === undefined || S.dbOff === null ? "Mikrofon nieskalibrowany: wynik to szacunek, błąd może sięgać 10 dB lub więcej. Wpisz wartość z miernika wzorcowego i stuknij „Skalibruj”. " : "Skalibrowano do wzorca (dotyczy tego telefonu i tego miejsca trzymania). ") +
+      "Telefon ma ograniczony zakres: powyżej ok. 90–100 dB wynik zaniża przesterowanie, a bardzo cichy hałas zakłóca szum mikrofonu. To nie jest miernik do pomiarów formalnych.";
+  }
+  function dbTick() {
+    if (!dbAn) return;
+    dbAn.getFloatFrequencyData(dbF);
+    var sr = dbCtx.sampleRate, N = dbAn.fftSize, p = 0, k, f, f2, ra;
+    for (k = 1; k < dbF.length; k++) {
+      f = k * sr / N; if (f < 20 || f > 20000) continue;
+      f2 = f * f;
+      ra = 148693636 * f2 * f2 / ((f2 + 424.36) * Math.sqrt((f2 + 11599.29) * (f2 + 544496.41)) * (f2 + 148693636));
+      p += Math.pow(10, (dbF[k] + 20 * Math.log10(ra) + 2.0) / 10);
+    }
+    var raw = 10 * Math.log10(p + 1e-20), lv = raw + dbOff();
+    dbRecent.push(raw); if (dbRecent.length > 8) dbRecent.shift();
+    var st = dbStat; st.n++; st.sum += Math.pow(10, lv / 10); st.last = lv;
+    st.min = st.min === null ? lv : Math.min(st.min, lv); st.max = st.max === null ? lv : Math.max(st.max, lv);
+    dbRender();
+  }
+  function dbStart() {
+    if (dbCtx) return;
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { $("dbNote").textContent = "Ta przeglądarka nie udostępnia mikrofonu."; return; }
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then(function (st) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      dbStream = st; dbCtx = new AC(); if (dbCtx.resume) dbCtx.resume();
+      var src = dbCtx.createMediaStreamSource(st); dbAn = dbCtx.createAnalyser();
+      dbAn.fftSize = 4096; dbAn.smoothingTimeConstant = 0; dbAn.minDecibels = -140;
+      src.connect(dbAn); dbF = new Float32Array(dbAn.frequencyBinCount);
+      dbStat = { n: 0, sum: 0, min: null, max: null, last: 0, t0: Date.now() }; dbRecent = [];
+      dbTimer = setInterval(dbTick, 250);
+      $("dbStart").textContent = "Wyłącz pomiar"; $("dbStart").setAttribute("aria-pressed", "true");
+    }).catch(function () { $("dbNote").textContent = "Brak dostępu do mikrofonu. Zezwól w Ustawieniach witryny w Chrome (Mikrofon)."; });
+  }
+  function dbStop() {
+    if (dbTimer) { clearInterval(dbTimer); dbTimer = null; }
+    if (dbStream) { dbStream.getTracks().forEach(function (t) { t.stop(); }); dbStream = null; }
+    if (dbCtx) { try { dbCtx.close(); } catch (e) {} dbCtx = null; }
+    dbAn = null;
+    $("dbStart").textContent = "Włącz pomiar (mikrofon)"; $("dbStart").setAttribute("aria-pressed", "false");
+  }
+
   // ---- Zapisane pomiary: wynik bieżącego narzędzia + data + notatka -----------
-  var LOG_UL = { lin: "rlRes", poz: "lvRes", dach: "roofRes", imp: "impRes", gps: "gpsRes" };
+  var LOG_UL = { lin: "rlRes", poz: "lvRes", dach: "roofRes", imp: "impRes", hal: "dbRes", gps: "gpsRes" };
   function logText(en) {
     return en.d + "  " + en.tool + (en.note ? "  [" + en.note + "]" : "") + "\n" + en.lines.join("\n");
   }
@@ -1877,22 +1969,24 @@
     }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
   }
   function gpsStop() { if (gpsW !== null) { navigator.geolocation.clearWatch(gpsW); gpsW = null; } }
-  function measStopAll() { lvStop(); roofStop(); gpsStop(); }
+  function measStopAll() { lvStop(); roofStop(); gpsStop(); dbStop(); }
 
   function measUpdate() {
     logRender();
-    var t = S.meas; if (["lin", "poz", "dach", "imp", "gps"].indexOf(t) < 0) t = "lin";
+    var t = S.meas; if (["lin", "poz", "dach", "imp", "hal", "gps"].indexOf(t) < 0) t = "lin";
     var lin = t === "lin";
-    $("rulerBox").hidden = t !== "lin"; $("levelBox").hidden = t !== "poz"; $("roofBox").hidden = t !== "dach"; $("gpsBox").hidden = t !== "gps"; $("impBox").hidden = t !== "imp";
+    $("rulerBox").hidden = t !== "lin"; $("levelBox").hidden = t !== "poz"; $("roofBox").hidden = t !== "dach"; $("gpsBox").hidden = t !== "gps"; $("impBox").hidden = t !== "imp"; $("halBox").hidden = t !== "hal";
     $("measTool").value = t;
-    if (t !== "poz") lvStop(); if (t !== "dach") roofStop(); if (t !== "gps") gpsStop();
+    if (t !== "poz") lvStop(); if (t !== "dach") roofStop(); if (t !== "gps") gpsStop(); if (t !== "hal") dbStop();
     if (t === "dach") { roofStart(); $("pvKwp").value = S.pvKwp; $("pvBase").value = S.pvBase; roofRender(); }
     else if (t === "imp") { $("impC").value = S.impC; impRender(); }
+    else if (t === "hal") { dbRender(); }
     else if (t === "gps") { gpsStart(); gpsRender(); }
     else if (lin) { rlK(); $("rlK").value = rlK(); rlCard(); rlDraw(); rlResults(); }
     else if (t === "poz") {
-      $("lvMode").value = S.lvMode; $("lvFlat").hidden = S.lvMode === "edge"; $("lvEdgeBox").hidden = S.lvMode !== "edge";
-      $("lvNote").textContent = S.lvMode === "edge"
+      $("lvMode").value = S.lvMode; $("lvFlat").hidden = S.lvMode !== "flat"; $("lvEdgeBox").hidden = S.lvMode !== "edge";
+      $("lvAngBox").hidden = S.lvMode !== "angle"; $("lvZero").hidden = S.lvMode === "angle";
+      $("lvNote").textContent = S.lvMode === "angle" ? "" : S.lvMode === "edge"
         ? "Przyłóż dłuższą krawędź telefonu do mierzonego przedmiotu, ekranem do siebie lub do góry, górną krawędzią w stronę, której nachylenie chcesz zmierzyć. Wynik to kąt tej krawędzi nad poziomem (0° = poziomo, 90° = pionowo). Zerowanie ustawia bieżący odczyt jako 0°."
         : "Połóż telefon ekranem do góry. Gdy kulka jest w środku, powierzchnia jest pozioma. Przed pomiarem zeruj na powierzchni wzorcowej, jeśli potrzebujesz większej dokładności.";
       lvStart(); lvRender();
@@ -1920,6 +2014,20 @@
     });
     ["pvKwp", "pvBase"].forEach(function (id) {
       $(id).addEventListener("input", function () { S[id] = $(id).value; save(); roofRender(); });
+    });
+    $("angA").addEventListener("click", function () { angP[0] = lvAngCur; lvRender(); });
+    $("angB").addEventListener("click", function () { angP[1] = lvAngCur; lvRender(); });
+    $("angC").addEventListener("click", function () { angP = [null, null]; lvRender(); });
+    $("dbStart").addEventListener("click", function () { if (dbCtx) { dbStop(); } else dbStart(); });
+    $("dbReset").addEventListener("click", function () { if (dbStat) { dbStat = { n: 0, sum: 0, min: null, max: null, last: 0, t0: Date.now() }; } dbRender(); });
+    $("dbCal").addEventListener("click", function () {
+      var ref = parse($("dbRef").value);
+      if (!dbCtx || !dbRecent.length) { toast("Najpierw włącz pomiar"); return; }
+      if (!(isFinite(ref) && ref > 0)) { toast("Wpisz wartość wzorcową"); return; }
+      var avg = dbRecent.reduce(function (a, b) { return a + b; }, 0) / dbRecent.length;
+      S.dbOff = Math.round((ref - avg) * 10) / 10; save();
+      if (dbStat) dbStat = { n: 0, sum: 0, min: null, max: null, last: 0, t0: Date.now() };
+      toast("Skalibrowano");
     });
     $("logSave").addEventListener("click", logSave);
     $("logCopy").addEventListener("click", function () {
