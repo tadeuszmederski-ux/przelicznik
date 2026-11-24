@@ -133,6 +133,21 @@
   .sr-list .v { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .sr-list .s { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .sr-list li.mass button { background: var(--hot); border-color: var(--hot-line); }
+  /* Rysunki poglądowe */
+  #normWrap { display: flex; flex-direction: column; gap: 12px; }
+  .draw { margin: 10px 0; }
+  .draw:empty { display: none; }
+  .draw svg { display: block; width: 100%; max-height: 210px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .draw .o { fill: var(--field); stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; }
+  .draw .w { fill: var(--surface); stroke: var(--ink); stroke-width: 1.6; }
+  .draw .n { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+  .draw .h { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 4 3; }
+  .draw .d { fill: none; stroke: var(--accent); stroke-width: 1.1; }
+  .draw .rg { fill: none; stroke: var(--muted); stroke-width: 8; }
+  .draw .dot { fill: var(--accent); }
+  .draw text { fill: var(--accent); font: 600 12px sans-serif; text-anchor: middle; dominant-baseline: middle; }
+  .legend { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; font-size: .78rem; color: var(--muted); }
+  .legend b { color: var(--accent); }
   /* Pomiary */
   #measWrap { display: flex; flex-direction: column; gap: 12px; }
   #rlWrap { overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); -webkit-overflow-scrolling: touch; }
@@ -172,6 +187,7 @@
       <option value="paliwa">Paliwa (WO i gęstość)</option>
       <option value="ceny">Ceny energii i paliw</option>
       <option value="pomiar">Pomiary (linijka, poziomica)</option>
+      <option value="norm">Normalki (śruby, nakrętki, pierścienie)</option>
     </select>
   </header>
 
@@ -214,6 +230,7 @@
         <div><label for="shape">Figura lub bryła</label><select id="shape"></select></div>
         <div><label for="dimU">Jednostka wymiarów</label><select id="dimU"></select></div>
       </div>
+      <div class="draw" id="shDraw"></div>
       <div class="sh-grid" id="shFields"></div>
       <div id="densBox" hidden>
         <div style="height:12px"></div>
@@ -227,6 +244,20 @@
     </section>
     <ul class="sr-list" id="shResults" aria-live="polite"></ul>
     <p class="note" id="shNote"></p>
+  </div>
+
+  <div id="normWrap" hidden>
+    <section class="card">
+      <label for="nmSel">Norma</label>
+      <select id="nmSel"></select>
+      <div class="sh-grid">
+        <div><label id="nmSizeL" for="nmSize">Rozmiar</label><select id="nmSize"></select></div>
+        <div id="nmLenBox"><label id="nmLenL" for="nmLen">Długość l [mm]</label><input id="nmLen" inputmode="decimal" autocomplete="off"></div>
+      </div>
+    </section>
+    <div class="draw" id="nmDraw"></div>
+    <ul class="sr-list" id="nmRes" aria-live="polite"></ul>
+    <p class="note" id="nmNote"></p>
   </div>
 
   <div id="fgazWrap" hidden>
@@ -564,6 +595,7 @@
     { id: "fgaz", name: "F-gazy (CO₂e)", w: "fgazWrap", info: "" },
     { id: "ceny", name: "Ceny energii i paliw", w: "priceWrap", info: "" },
     { id: "pomiar", name: "Pomiary", w: "measWrap", info: "Linijka i poziomica korzystają z ekranu i czujnika telefonu, więc są orientacyjne. Do pomiarów, od których zależy rozliczenie lub bezpieczeństwo, użyj przyrządu z legalizacją." },
+    { id: "norm", name: "Normalki", w: "normWrap", info: "" },
     { id: "kalk", name: "Kalkulator", w: "calcBlock", info: "Wyniki są zaokrąglane do 12 cyfr. Procent: x% = x/100. Funkcje kątowe liczą według wybranego DEG (stopnie) lub RAD (radiany). Ans to ostatni wynik. Brakujące nawiasy na końcu są domykane." },
     { id: "bryly", name: "Figury i bryły", w: "shapeWrap", info: "" },
     { id: "temp",     name: "Temperatura",  list: TEMP,    info: "" },
@@ -592,7 +624,7 @@
     prGrp: "firmy", prSort: false,
     calcMode: "zwykly", angle: "deg", calcExpr: "", calcHist: [], ans: 0, lastTab: "energia",
     shape: "walec", shapeVals: {}, dimU: "mm", mat: "stal", dens: "7850", densU: "kg/m³",
-    meas: "lin", rlK: 0, lvMode: "flat", dbOff: null, measLog: [], impC: "1000", pvKwp: "10", pvBase: "1000", gpsPts: []
+    meas: "lin", rlK: 0, lvMode: "flat", nm: "din912", nmSz: {}, nmLen: "30", dbOff: null, measLog: [], impC: "1000", pvKwp: "10", pvBase: "1000", gpsPts: []
   };
   var KEY = "przelicznik-inzynierski-v1";
   function load() {
@@ -694,10 +726,10 @@
     $("segSel").value = special ? c.id : "jedn";
     $("chips").hidden = special; $("barRow").hidden = special;
     $("convCard").hidden = special; $("results").hidden = special;
-    ["calcBlock", "shapeWrap", "fgazWrap", "fuelWrap", "priceWrap", "measWrap"].forEach(function (id) { $(id).hidden = !(special && c.w === id); });
+    ["calcBlock", "shapeWrap", "fgazWrap", "fuelWrap", "priceWrap", "measWrap", "normWrap"].forEach(function (id) { $(id).hidden = !(special && c.w === id); });
     if (c.id !== "pomiar") measStopAll();
     if (special) {
-      var setup = { kalk: setupCalc, bryly: setupShapes, fgaz: setupFgaz, paliwa: setupFuels, ceny: setupPrices, pomiar: setupMeas }[c.id];
+      var setup = { kalk: setupCalc, bryly: setupShapes, fgaz: setupFgaz, paliwa: setupFuels, ceny: setupPrices, pomiar: setupMeas, norm: setupNorm }[c.id];
       if (setup) setup();
       $("info").textContent = c.info || ""; updateOnlyFavBtn(); return;
     }
@@ -1066,6 +1098,29 @@
         var A = p.H * p.s + 2 * (p.B - p.s) * p.t, pb = (2 * p.H + 4 * p.B - 2 * p.s) * p.L;
         return [R("Pole przekroju A", 2, A), R(PC, 2, pb + 2 * A), R(PB, 2, pb), R(VO, 3, A * p.L)];
       } },
+    { id: "profprost", g: 1, s: true, n: "Profil prostokątny zamknięty (rura prostokątna lub kwadratowa)", p: [["H", "Wysokość H"], ["B", "Szerokość B (przy kwadratowym = H)"], ["t", "Grubość ścianki t"], ["L", "Długość L"]],
+      f: "A = H·B − (H − 2t)(B − 2t);  Pb zewn. = 2(H + B)·L;  Pb wewn. = 2(H + B − 4t)·L;  V = A·L. Bez zaokrągleń naroży, więc wynik jest nieco większy niż z tablic. Dla kg/m wpisz L = 1 m.",
+      c: function (p) {
+        if (!(2 * p.t < p.H && 2 * p.t < p.B)) return ERR("Dwie grubości ścianki muszą być mniejsze od H i od B.");
+        var A = p.H * p.B - (p.H - 2 * p.t) * (p.B - 2 * p.t), po = 2 * (p.H + p.B) * p.L, pi = 2 * (p.H + p.B - 4 * p.t) * p.L;
+        return [R("Pole przekroju A", 2, A), R(PC, 2, po + pi + 2 * A), R("Pole powierzchni zewnętrznej", 2, po), R("Pole powierzchni wewnętrznej", 2, pi), R(VO, 3, A * p.L)];
+      } },
+    { id: "teownik", g: 1, s: true, n: "Teownik (profil T)", p: [["H", "Wysokość całkowita H"], ["B", "Szerokość stopki B"], ["s", "Grubość środnika s"], ["t", "Grubość stopki t"], ["L", "Długość L"]],
+      f: "A = B·t + (H − t)·s;  obwód przekroju = 2(B + H);  Pb = obwód·L;  Pc = Pb + 2A;  V = A·L. Stopka prostokątna, bez zaokrągleń, więc wynik jest nieco mniejszy niż z tablic. Dla kg/m wpisz L = 1 m.",
+      c: function (p) {
+        if (!(p.s < p.B)) return ERR("Grubość środnika s musi być mniejsza od szerokości stopki B.");
+        if (!(p.t < p.H)) return ERR("Grubość stopki t musi być mniejsza od wysokości H.");
+        var A = p.B * p.t + (p.H - p.t) * p.s, pb = 2 * (p.B + p.H) * p.L;
+        return [R("Pole przekroju A", 2, A), R(PC, 2, pb + 2 * A), R(PB, 2, pb), R(VO, 3, A * p.L)];
+      } },
+    { id: "dwuteownik", g: 1, s: true, n: "Dwuteownik (profil I lub H)", p: [["H", "Wysokość H"], ["B", "Szerokość stopki B"], ["s", "Grubość środnika s"], ["t", "Grubość stopki t"], ["L", "Długość L"]],
+      f: "A = 2·B·t + (H − 2t)·s;  obwód przekroju = 4B + 2H − 2s;  Pb = obwód·L;  Pc = Pb + 2A;  V = A·L. Stopki równoległe, bez zaokrągleń, więc wynik jest nieco mniejszy niż z tablic. Dla kg/m wpisz L = 1 m.",
+      c: function (p) {
+        if (!(p.s < p.B)) return ERR("Grubość środnika s musi być mniejsza od szerokości stopki B.");
+        if (!(2 * p.t < p.H)) return ERR("Dwie grubości stopki muszą być mniejsze od wysokości H.");
+        var A = 2 * p.B * p.t + (p.H - 2 * p.t) * p.s, pb = (4 * p.B + 2 * p.H - 2 * p.s) * p.L;
+        return [R("Pole przekroju A", 2, A), R(PC, 2, pb + 2 * A), R(PB, 2, pb), R(VO, 3, A * p.L)];
+      } },
     { id: "stozek", g: 1, s: true, n: "Stożek", p: [["r", "Promień podstawy r"], ["h", "Wysokość h"]],
       f: "l = √(r² + h²);  Pb = π·r·l;  Pc = π·r(r + l);  V = π·r²·h/3.",
       c: function (p) {
@@ -1151,6 +1206,7 @@
   }
   function shapeFields() {
     var sh = shapeObj(S.shape), box = $("shFields"); box.innerHTML = "";
+    $("shDraw").innerHTML = (DRAW[sh.id] || "") + drawLegend(sh.p.map(function (q) { return [q[0] === "al" ? "α" : q[0], q[1] + (q[2] === "o" ? " (opcjonalnie)" : "")]; }));
     if (!S.shapeVals || typeof S.shapeVals !== "object") S.shapeVals = {};
     var vals = S.shapeVals[sh.id] || (S.shapeVals[sh.id] = {});
     sh.p.forEach(function (q) {
@@ -2062,8 +2118,220 @@
     window.addEventListener("resize", function () { if (cat(S.tab).id === "pomiar" && S.meas !== "poz") rlDraw(); });
   }
 
+  // ---- Rysunki poglądowe (SVG) ------------------------------------------------
+  // Rysunki nie są w skali: pokazują, co oznaczają litery wymiarów w polach i wynikach.
+  function gSvg(b) { return '<svg viewBox="-14 -8 254 176" role="img" aria-label="Rysunek poglądowy z oznaczeniem wymiarów" xmlns="http://www.w3.org/2000/svg">' + b + '</svg>'; }
+  function gRect(x, y, w, h, c) { return '<rect class="' + (c || "o") + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"/>'; }
+  function gRR(x, y, w, h, r, c) { return '<rect class="' + (c || "o") + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r + '"/>'; }
+  function gPoly(p, c) { return '<polygon class="' + (c || "o") + '" points="' + p + '"/>'; }
+  function gPath(d, c) { return '<path class="' + (c || "o") + '" d="' + d + '"/>'; }
+  function gEll(cx, cy, rx, ry, c) { return '<ellipse class="' + (c || "o") + '" cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '"/>'; }
+  function gLine(x1, y1, x2, y2, c) { return '<line class="' + (c || "n") + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>'; }
+  function gTxt(x, y, t) { return '<text x="' + x + '" y="' + y + '">' + t + '</text>'; }
+  function gDim(x1, y1, x2, y2, l, dx, dy) {
+    var vx = x2 - x1, vy = y2 - y1, L = Math.sqrt(vx * vx + vy * vy) || 1, ux = vx / L, uy = vy / L, nx = -uy, ny = ux;
+    function f(v) { return v.toFixed(1); }
+    var a = 'M' + f(x1 + ux * 6 + nx * 2.5) + ' ' + f(y1 + uy * 6 + ny * 2.5) + ' L' + x1 + ' ' + y1 + ' L' + f(x1 + ux * 6 - nx * 2.5) + ' ' + f(y1 + uy * 6 - ny * 2.5) +
+            ' M' + f(x2 - ux * 6 + nx * 2.5) + ' ' + f(y2 - uy * 6 + ny * 2.5) + ' L' + x2 + ' ' + y2 + ' L' + f(x2 - ux * 6 - nx * 2.5) + ' ' + f(y2 - uy * 6 - ny * 2.5);
+    return gLine(x1, y1, x2, y2, "d") + gPath(a, "d") + gTxt(f((x1 + x2) / 2 + dx), f((y1 + y2) / 2 + dy), l);
+  }
+  function gDot(x, y) { return '<circle class="dot" cx="' + x + '" cy="' + y + '" r="2.2"/>'; }
+
+  var DRAW = {
+    prostokat: gSvg(gRect(45, 25, 150, 85) + gDim(45, 124, 195, 124, "a", 0, 10) + gDim(210, 25, 210, 110, "b", 10, 0)),
+    kwadrat: gSvg(gRect(65, 15, 110, 110) + gDim(65, 140, 175, 140, "a", 0, 10)),
+    kolo: gSvg(gEll(120, 76, 60, 60) + gDim(120, 76, 180, 76, "r", 0, -9) + gDot(120, 76)),
+    trojkat3: gSvg(gPoly("40,125 200,125 120,28") + gTxt(120, 142, "a") + gTxt(172, 68, "b") + gTxt(66, 68, "c")),
+    trojkath: gSvg(gPoly("40,125 190,125 130,30") + gPath("M130 115 L140 115 L140 125", "n") + gDim(40,140,190,140,"a",0,10) + gDim(130,30,130,125,"h",-10,0)),
+    trapez: gSvg(gPoly("55,125 195,125 160,45 90,45") + gDim(55, 140, 195, 140, "a", 0, 10) + gDim(90, 33, 160, 33, "b", 0, -9) + gLine(90, 45, 90, 125, "h") + gTxt(101, 90, "h") + gTxt(58, 86, "c") + gTxt(194, 82, "d")),
+    rownoleglobok: gSvg(gPoly("45,125 165,125 205,45 85,45") + gDim(45, 140, 165, 140, "a", 0, 10) + gLine(85, 45, 85, 125, "h") + gTxt(96, 90, "h") + gTxt(52, 82, "b")),
+    romb: gSvg(gPoly("55,125 145,125 195,45 105,45") + gDim(55, 140, 145, 140, "a", 0, 10) + gLine(105, 45, 105, 125, "h") + gTxt(116, 90, "h")),
+    szesciokat: gSvg(gPoly("176,82 148,130.5 92,130.5 64,82 92,33.5 148,33.5") + gDim(92, 22, 148, 22, "a", 0, -9)),
+    elipsa: gSvg(gEll(120, 78, 90, 52) + gDim(120, 78, 210, 78, "a", 0, -9) + gDim(120, 78, 120, 26, "b", -10, 0) + gDot(120, 78)),
+    pierscien: gSvg(gEll(120, 78, 62, 62) + gEll(120, 78, 28, 28, "w") + gDim(120, 78, 182, 78, "R", 0, -9) + gDim(120, 78, 120, 106, "r", -10, 0) + gDot(120, 78)),
+    wycinek: gSvg(gPath("M50 128 L170 128 A120 120 0 0 0 110 24.1 Z") + gDim(50, 142, 170, 142, "r", 0, 10) + gPath("M80 128 A30 30 0 0 0 65 102", "d") + gTxt(93, 114, "α")),
+    szescian: gSvg(gPoly("40,55 80,15 160,15 120,55") + gPoly("120,55 160,15 160,95 120,135") + gRect(40, 55, 80, 80) + gDim(40, 148, 120, 148, "a", 0, 9)),
+    prostopadloscian: gSvg(gPoly("30,60 85,22 195,22 140,60") + gPoly("140,60 195,22 195,92 140,130") + gRect(30, 60, 110, 70) + gDim(30, 144, 140, 144, "a", 0, 9) + gDim(16, 60, 16, 130, "c", -9, 0) + gTxt(186, 118, "b")),
+    walec: gSvg(gPath("M65 42 V124 A55 14 0 0 0 175 124 V42") + gEll(120, 42, 55, 14) + gDim(120, 42, 175, 42, "r", 0, -8) + gDim(192, 42, 192, 124, "h", 10, 0)),
+    rura: gSvg(gPath("M65 44 V124 A55 14 0 0 0 175 124 V44") + gEll(120, 44, 55, 14) + gEll(120, 44, 38, 9, "w") + gDim(65, 22, 175, 22, "D", 0, -8) + gDim(158, 56, 175, 56, "g", 0, 11) + gDim(192, 44, 192, 124, "h", 10, 0)),
+    katownik: gSvg(gPoly("60,25 90,25 90,105 180,105 180,135 60,135") + gDim(44, 25, 44, 135, "a", -9, 0) + gDim(60, 150, 180, 150, "b", 0, 9) + gDim(60, 14, 90, 14, "t", 0, -8)),
+    ceownik: gSvg(gPoly("55,20 175,20 175,36 78,36 78,124 175,124 175,140 55,140") + gDim(40, 20, 40, 140, "H", -9, 0) + gDim(55, 153, 175, 153, "B", 0, 9) + gDim(55, 80, 78, 80, "s", 0, -10) + gDim(190, 20, 190, 36, "t", 10, 0)),
+    profprost: gSvg(gRect(50, 22, 140, 116) + gRect(70, 42, 100, 76, "w") + gDim(34, 22, 34, 138, "H", -9, 0) + gDim(50, 151, 190, 151, "B", 0, 9) + gDim(50, 80, 70, 80, "t", 0, -9)),
+    teownik: gSvg(gPoly("45,22 195,22 195,40 128,40 128,138 112,138 112,40 45,40") + gDim(45, 12, 195, 12, "B", 0, -8) + gDim(212, 22, 212, 138, "H", 10, 0) + gDim(112, 151, 128, 151, "s", 0, 9) + gDim(30, 22, 30, 40, "t", -9, 0)),
+    dwuteownik: gSvg(gPoly("45,22 195,22 195,40 128,40 128,120 195,120 195,138 45,138 45,120 112,120 112,40 45,40") + gDim(212, 22, 212, 138, "H", 10, 0) + gDim(45, 152, 195, 152, "B", 0, 9) + gDim(112, 80, 128, 80, "s", 22, 0) + gDim(30, 22, 30, 40, "t", -9, 0)),
+    stozek: gSvg(gPath("M60 125 L120 18 L180 125 A60 15 0 0 1 60 125 Z") + gPath("M60 125 A60 15 0 0 1 180 125", "h") + gLine(120, 18, 120, 125, "h") + gTxt(110, 70, "h") + gDim(120, 125, 180, 125, "r", 0, -9)),
+    stozeksc: gSvg(gPath("M88 40 L55 122 A65 16 0 0 0 185 122 L152 40 Z") + gEll(120, 40, 32, 8) + gLine(120, 40, 120, 122, "h") + gTxt(110, 84, "h") + gDim(120, 122, 185, 122, "R", 0, -9) + gDim(120, 40, 152, 40, "r", 0, -9)),
+    kula: gSvg(gEll(120, 80, 62, 62) + gPath("M58 80 A62 16 0 0 0 182 80", "n") + gPath("M58 80 A62 16 0 0 1 182 80", "h") + gDim(120, 80, 182, 80, "r", 0, -9) + gDot(120, 80)),
+    polkula: gSvg(gPath("M58 108 A62 62 0 0 1 182 108 A62 15 0 0 1 58 108 Z") + gPath("M58 108 A62 15 0 0 1 182 108", "h") + gDim(120, 108, 182, 108, "r", 0, -9) + gDot(120, 108)),
+    ostroslup: gSvg(gLine(50, 128, 100, 100, "h") + gLine(100, 100, 200, 100, "h") + gLine(100, 100, 125, 20, "h") + gPoly("50,128 150,128 125,20") + gPoly("150,128 200,100 125,20") + gDim(50, 142, 150, 142, "a", 0, 9) + gDim(125, 20, 125, 114, "h", 10, 0)),
+    graniast6: gSvg(gPoly("60,40 95,24 145,24 180,40 145,56 95,56") + gLine(60, 40, 60, 125) + gLine(180, 40, 180, 125) + gLine(95, 56, 95, 141) + gLine(145, 56, 145, 141) + gPath("M60 125 L95 141 L145 141 L180 125", "n") + gDim(95, 154, 145, 154, "a", 0, 8) + gDim(196, 40, 196, 125, "h", 10, 0)),
+    torus: gSvg(gEll(120, 82, 88, 46) + gEll(120, 82, 38, 14, "w") + gDim(120, 82, 183, 82, "R", 0, 11) + gDim(183, 82, 208, 82, "r", 0, -9) + gDot(120, 82))
+  };
+  function drawLegend(items) {
+    return '<ul class="legend">' + items.map(function (it) { return '<li><b>' + it[0] + '</b> – ' + it[1] + '</li>'; }).join("") + '</ul>';
+  }
+
+  // ---- Normalia: wymiary z tablic norm + rysunki ------------------------------
+  function nutTop(a) {
+    return gPoly("114,80 91,119.8 45,119.8 22,80 45,40.2 91,40.2") + gEll(68, 80, 20, 20, "w") + gDim(48, 80, 88, 80, "d", 0, -9) + gDim(128, 40.2, 128, 119.8, "s", 10, 0);
+  }
+  function screwDims(hx, hdx, shankX1, shankX2) { return ""; }
+  var ND = {
+    din912: gSvg(gRect(30, 45, 38, 70) + gRect(30, 63, 26, 34, "h") + gTxt(43, 80, "s") + gRect(68, 62, 140, 36) +
+      gPath("M148 62 L156 98 M158 62 L166 98 M168 62 L176 98 M178 62 L186 98 M188 62 L196 98", "h") +
+      gDim(18, 45, 18, 115, "dk", -10, 0) + gDim(30, 128, 68, 128, "k", 0, 9) + gDim(222, 62, 222, 98, "d", 10, 0) + gDim(68, 142, 208, 142, "l", 0, 9)),
+    din933: gSvg(gRect(30, 42, 36, 76) + gLine(30, 60, 66, 60) + gLine(30, 100, 66, 100) + gRect(66, 62, 140, 36) +
+      gPath("M70 62 L78 98 M80 62 L88 98 M90 62 L98 98 M100 62 L108 98 M110 62 L118 98 M120 62 L128 98 M130 62 L138 98 M140 62 L148 98 M150 62 L158 98 M160 62 L168 98 M170 62 L178 98 M180 62 L188 98 M190 62 L198 98", "h") +
+      gDim(18, 42, 18, 118, "s", -9, 0) + gDim(30, 130, 66, 130, "k", 0, 9) + gDim(220, 62, 220, 98, "d", 10, 0) + gDim(66, 144, 206, 144, "l", 0, 9)),
+    din934: gSvg(nutTop() + gRect(168, 40, 36, 80) + gDim(168, 134, 204, 134, "m", 0, 9)),
+    din439: gSvg(nutTop() + gRect(168, 40, 20, 80) + gDim(168, 134, 188, 134, "m", 0, 9)),
+    din985: gSvg(nutTop() + gRect(160, 40, 34, 80) + gPath("M194 48 L206 48 Q214 62 214 80 Q214 98 206 112 L194 112 Z") + gDim(160, 134, 214, 134, "h", 0, 9)),
+    din125: gSvg(gEll(70, 78, 56, 56) + gEll(70, 78, 26, 26, "w") + gDim(14, 148, 126, 148, "d2", 0, 8) + gDim(44, 78, 96, 78, "d1", 0, -9) + gRect(168, 22, 14, 112) + gDim(168, 12, 182, 12, "h", 0, -8)),
+    iso7380_1: gSvg(gPath("M72 40 L72 120 C54 120 30 108 30 80 C30 52 54 40 72 40 Z") + gRect(38, 68, 22, 24, "h") + gTxt(49, 80, "s") + gRect(72, 62, 136, 36) +
+      gDim(16, 40, 16, 120, "dk", -9, 0) + gDim(30, 134, 72, 134, "k", 0, 9) + gDim(222, 62, 222, 98, "d", 10, 0) + gDim(72, 148, 208, 148, "l", 0, 9)),
+    iso7380_2: gSvg(gRect(72, 34, 9, 92) + gPath("M72 42 L72 118 C54 118 32 108 32 80 C32 52 54 42 72 42 Z") + gRect(40, 68, 22, 24, "h") + gTxt(51, 80, "s") + gRect(81, 62, 127, 36) +
+      gDim(22, 42, 22, 118, "dk", -9, 0) + gDim(-4, 34, -4, 126, "dc", -9, 0) + gDim(32, 136, 81, 136, "k", 0, 9) + gDim(222, 62, 222, 98, "d", 10, 0) + gDim(81, 150, 208, 150, "l", 0, 9)),
+    iso1234: gSvg(gEll(40, 80, 20, 20) + gEll(40, 80, 11, 11, "w") + gRect(58, 71, 150, 9) + gRect(58, 80, 136, 9) +
+      gDim(4, 60, 4, 100, "b", -9, 0) + gDim(222, 71, 222, 89, "c", 10, 0) + gDim(194, 102, 208, 102, "a", 0, 9) + gDim(58, 122, 208, 122, "l", 0, 9)),
+    din6885: gSvg(gRect(30, 14, 170, 26) + gRR(30, 62, 170, 38, 19) + gDim(214, 14, 214, 40, "h", 10, 0) + gDim(214, 62, 214, 100, "b", 10, 0) + gDim(30, 116, 200, 116, "l", 0, 9)),
+    din471: gSvg('<path class="rg" d="M100.6 54.3 A40 40 0 1 0 100.6 105.7"/>' + gEll(100.6, 54.3, 4, 4, "w") + gEll(100.6, 105.7, 4, 4, "w") +
+      gPath("M140 40 L174 40 L174 47 L188 47 L188 40 L230 40 L230 120 L188 120 L188 113 L174 113 L174 120 L140 120 Z") + gRect(175, 32, 12, 15) + gRect(175, 113, 12, 15) +
+      gDim(128, 40, 128, 120, "d1", -10, 0) + gDim(162, 47, 162, 113, "d2", -10, 0) + gDim(174, 142, 188, 142, "m", 0, 9) + gDim(175, 22, 187, 22, "s", 0, -8)),
+    din472: gSvg('<path class="rg" d="M25.4 54.3 A40 40 0 1 1 25.4 105.7"/>' + gEll(25.4, 54.3, 4, 4, "w") + gEll(25.4, 105.7, 4, 4, "w") +
+      gPath("M140 14 L230 14 L230 50 L188 50 L188 44 L174 44 L174 50 L140 50 Z") + gPath("M140 150 L230 150 L230 114 L188 114 L188 120 L174 120 L174 114 L140 114 Z") +
+      gRect(175, 44, 12, 14) + gRect(175, 106, 12, 14) +
+      gDim(128, 50, 128, 114, "d1", -10, 0) + gDim(162, 44, 162, 120, "d2", -10, 0) + gDim(174, 4, 188, 4, "m", 0, -8) + gDim(175, 70, 187, 70, "s", 0, 9))
+  };
+  var MM = { M3: [0.5, 2.5, 3.4], M4: [0.7, 3.3, 4.5], M5: [0.8, 4.2, 5.5], M6: [1, 5, 6.6], M8: [1.25, 6.8, 9], M10: [1.5, 8.5, 11], M12: [1.75, 10.2, 13.5], M14: [2, 12, 15.5], M16: [2, 14, 17.5], M20: [2.5, 17.5, 22], M24: [3, 21, 26] };
+  var RHO = 7.85e-3;   // g/mm³ (stal)
+  function hexV(s) { return Math.sqrt(3) / 2 * s * s; }
+  var NORMS = [
+    { id: "din912", n: "DIN 912 – śruba z łbem walcowym i gniazdem sześciokątnym", lab: "Gwint", th: true, len: true, keys: ["dk", "k", "s"],
+      desc: { dk: "Średnica łba dk", k: "Wysokość łba k", s: "Klucz imbusowy s" },
+      leg: [["d", "średnica gwintu"], ["dk", "średnica łba"], ["k", "wysokość łba"], ["s", "klucz imbusowy"], ["l", "długość pod łbem"]],
+      rows: [["M3", 5.5, 3, 2.5], ["M4", 7, 4, 3], ["M5", 8.5, 5, 4], ["M6", 10, 6, 5], ["M8", 13, 8, 6], ["M10", 16, 10, 8], ["M12", 18, 12, 10], ["M14", 21, 14, 12], ["M16", 24, 16, 14], ["M20", 30, 20, 17], ["M24", 36, 24, 19]],
+      mass: function (r, l) { return (Math.PI / 4 * r.dk * r.dk * r.k - hexV(r.s) * 0.5 * r.k + Math.PI / 4 * r.d * r.d * l) * RHO; },
+      note: "Odpowiednik: ISO 4762. Masa uwzględnia gniazdo i trzon o średnicy nominalnej." },
+    { id: "din933", n: "DIN 933 – śruba z łbem sześciokątnym, gwint na całej długości", lab: "Gwint", th: true, len: true, hex: true, keys: ["k", "s"],
+      desc: { k: "Wysokość łba k", s: "Klucz s" },
+      leg: [["d", "średnica gwintu"], ["s", "klucz"], ["k", "wysokość łba"], ["l", "długość pod łbem"]],
+      rows: [["M3", 2, 5.5], ["M4", 2.8, 7], ["M5", 3.5, 8], ["M6", 4, 10], ["M8", 5.3, 13], ["M10", 6.4, 17], ["M12", 7.5, 19], ["M14", 8.8, 22], ["M16", 10, 24], ["M20", 12.5, 30], ["M24", 15, 36]],
+      mass: function (r, l) { return (hexV(r.s) * r.k + Math.PI / 4 * r.d * r.d * l) * RHO; },
+      note: "Odpowiednik: ISO 4017 (klucze dla M10, M12, M14 w ISO są o 1 mm mniejsze: 16, 18, 21 mm)." },
+    { id: "din934", n: "DIN 934 – nakrętka sześciokątna", lab: "Gwint", th: true, hex: true, keys: ["s", "m"],
+      desc: { s: "Klucz s", m: "Wysokość nakrętki m" },
+      leg: [["d", "średnica gwintu"], ["s", "klucz"], ["m", "wysokość nakrętki"]],
+      rows: [["M3", 5.5, 2.4], ["M4", 7, 3.2], ["M5", 8, 4], ["M6", 10, 5], ["M8", 13, 6.5], ["M10", 17, 8], ["M12", 19, 10], ["M14", 22, 11], ["M16", 24, 13], ["M20", 30, 16], ["M24", 36, 19]],
+      mass: function (r) { return (hexV(r.s) - Math.PI / 4 * r.d * r.d) * r.m * RHO; },
+      note: "Odpowiednik: ISO 4032 (klucze dla M10, M12, M14 w ISO: 16, 18, 21 mm). Masa bez fazowania." },
+    { id: "din439", n: "DIN 439 – nakrętka sześciokątna niska", lab: "Gwint", th: true, hex: true, keys: ["s", "m"],
+      desc: { s: "Klucz s", m: "Wysokość nakrętki m" },
+      leg: [["d", "średnica gwintu"], ["s", "klucz"], ["m", "wysokość nakrętki"]],
+      rows: [["M3", 5.5, 1.8], ["M4", 7, 2.2], ["M5", 8, 2.7], ["M6", 10, 3.2], ["M8", 13, 4], ["M10", 17, 5], ["M12", 19, 6], ["M14", 22, 7], ["M16", 24, 8], ["M20", 30, 10], ["M24", 36, 12]],
+      mass: function (r) { return (hexV(r.s) - Math.PI / 4 * r.d * r.d) * r.m * RHO; },
+      note: "Odpowiednik: ISO 4035 (klucze dla M10, M12, M14 w ISO: 16, 18, 21 mm). Masa bez fazowania." },
+    { id: "din985", n: "DIN 985 – nakrętka samohamowna z wkładką nylonową (niska)", lab: "Gwint", th: true, hex: true, keys: ["s", "h"],
+      desc: { s: "Klucz s", h: "Wysokość całkowita h" },
+      leg: [["d", "średnica gwintu"], ["s", "klucz"], ["h", "wysokość całkowita (z wkładką)"]],
+      rows: [["M3", 5.5, 4], ["M4", 7, 5], ["M5", 8, 5], ["M6", 10, 6], ["M8", 13, 8], ["M10", 17, 10], ["M12", 19, 12]],
+      mass: null,
+      note: "Odpowiednik: ISO 10511. Rozmiary tylko do M12 (powyżej brak danych potwierdzonych w tablicach dostawców). Masy nie podaję, bo wkładka nylonowa zmienia bryłę." },
+    { id: "din125", n: "DIN 125 – podkładka okrągła (forma A)", lab: "Gwint śruby", keys: ["d1", "d2", "h"],
+      desc: { d1: "Średnica otworu d1", d2: "Średnica zewnętrzna d2", h: "Grubość h" },
+      leg: [["d1", "średnica otworu"], ["d2", "średnica zewnętrzna"], ["h", "grubość"]],
+      rows: [["M3", 3.2, 7, 0.5], ["M4", 4.3, 9, 0.8], ["M5", 5.3, 10, 1], ["M6", 6.4, 12, 1.6], ["M8", 8.4, 16, 1.6], ["M10", 10.5, 20, 2], ["M12", 13, 24, 2.5], ["M14", 15, 28, 2.5], ["M16", 17, 30, 3], ["M20", 21, 37, 3], ["M24", 25, 44, 4]],
+      mass: function (r) { return Math.PI / 4 * (r.d2 * r.d2 - r.d1 * r.d1) * r.h * RHO; },
+      note: "Odpowiednik: ISO 7089 (forma A)." },
+    { id: "iso7380_1", n: "ISO 7380-1 – śruba z łbem kulistym (wypukłym) i gniazdem sześciokątnym", lab: "Gwint", th: true, len: true, keys: ["dk", "k", "s"],
+      desc: { dk: "Średnica łba dk", k: "Wysokość łba k", s: "Klucz imbusowy s" },
+      leg: [["d", "średnica gwintu"], ["dk", "średnica łba"], ["k", "wysokość łba"], ["s", "klucz imbusowy"], ["l", "długość pod łbem"]],
+      rows: [["M3", 5.7, 1.65, 2], ["M4", 7.6, 2.2, 2.5], ["M5", 9.5, 2.75, 3], ["M6", 10.5, 3.3, 4], ["M8", 14, 4.4, 5], ["M10", 17.5, 5.5, 6], ["M12", 21, 6.6, 8], ["M16", 28, 8.8, 10]],
+      mass: function (r, l) { return (Math.PI * r.k * (3 * r.dk * r.dk / 4 + r.k * r.k) / 6 - hexV(r.s) * 0.5 * r.k + Math.PI / 4 * r.d * r.d * l) * RHO; },
+      note: "Opcja 1: łeb kulisty bez kołnierza. Masa: czasza kulista, gniazdo i trzon o średnicy nominalnej (±10 %)." },
+    { id: "iso7380_2", n: "ISO 7380-2 – śruba z łbem kulistym i kołnierzem, gniazdo sześciokątne", lab: "Gwint", th: true, len: true, keys: ["dk", "dc", "k", "s"],
+      desc: { dk: "Średnica łba dk", dc: "Średnica kołnierza dc", k: "Wysokość łba k", s: "Klucz imbusowy s" },
+      leg: [["d", "średnica gwintu"], ["dk", "średnica łba"], ["dc", "średnica kołnierza"], ["k", "wysokość łba"], ["s", "klucz imbusowy"], ["l", "długość pod łbem"]],
+      rows: [["M3", 5.7, 7.2, 1.65, 2], ["M4", 7.6, 9.4, 2.2, 2.5], ["M5", 9.5, 11.8, 2.75, 3], ["M6", 10.5, 14.2, 3.3, 4], ["M8", 14, 18.6, 4.4, 5], ["M10", 17.5, 23, 5.5, 6]],
+      mass: function (r, l) { return (Math.PI * r.k * (3 * r.dk * r.dk / 4 + r.k * r.k) / 6 + Math.PI / 4 * r.dc * r.dc * 0.1 * r.d - hexV(r.s) * 0.5 * r.k + Math.PI / 4 * r.d * r.d * l) * RHO; },
+      note: "Opcja 2: łeb kulisty z kołnierzem. Masa orientacyjna (kołnierz o grubości ok. 0,1 d, ±15 %)." },
+    { id: "iso1234", n: "ISO 1234 – zawleczka", lab: "Średnica nominalna d [mm]", len: true, keys: ["c", "b", "a"],
+      desc: { c: "Średnica zawleczki c (maks.)", b: "Średnica oczka b (maks.)", a: "Różnica długości ramion a (maks.)" },
+      leg: [["d", "średnica nominalna = średnica otworu"], ["c", "grubość obu ramion"], ["b", "średnica oczka"], ["a", "różnica długości ramion"], ["l", "długość nominalna"]],
+      rows: [["1", 0.9, 2, 1.6], ["1,2", 1, 2.4, 2.5], ["1,6", 1.4, 3.2, 2.5], ["2", 1.8, 4, 2.5], ["2,5", 2.3, 5, 2.5], ["3,2", 2.9, 6.4, 3.2], ["4", 3.7, 8, 4], ["5", 4.6, 10, 4], ["6,3", 5.9, 12.6, 4], ["8", 7.5, 16, 4], ["10", 9.5, 20, 6.3], ["13", 12.4, 26, 6.3], ["16", 15.4, 32, 6.3], ["20", 19.3, 40, 6.3]],
+      mass: null, note: "Średnica otworu w sworzniu powinna być równa średnicy nominalnej d. Długość nominalną wpisz tylko informacyjnie." },
+    { id: "din6885", n: "DIN 6885 – wpust pryzmatyczny (forma A)", lab: "Średnica wału d [mm]", len: true, keys: ["b", "h", "t1", "t2"],
+      desc: { b: "Szerokość wpustu b", h: "Wysokość wpustu h", t1: "Głębokość rowka w wale t1", t2: "Głębokość rowka w piaście t2" },
+      leg: [["b", "szerokość"], ["h", "wysokość"], ["l", "długość"], ["t1", "głębokość rowka w wale"], ["t2", "głębokość rowka w piaście"]],
+      rows: [["powyżej 6 do 8", 2, 2, 1.2, 1], ["powyżej 8 do 10", 3, 3, 1.8, 1.4], ["powyżej 10 do 12", 4, 4, 2.5, 1.8], ["powyżej 12 do 17", 5, 5, 3, 2.3], ["powyżej 17 do 22", 6, 6, 3.5, 2.8], ["powyżej 22 do 30", 8, 7, 4, 3.3], ["powyżej 30 do 38", 10, 8, 5, 3.3], ["powyżej 38 do 44", 12, 8, 5, 3.3], ["powyżej 44 do 50", 14, 9, 5.5, 3.8], ["powyżej 50 do 58", 16, 10, 6, 4.3], ["powyżej 58 do 65", 18, 11, 7, 4.4], ["powyżej 65 do 75", 20, 12, 7.5, 4.9], ["powyżej 75 do 85", 22, 14, 9, 5.4], ["powyżej 85 do 95", 25, 14, 9, 5.4], ["powyżej 95 do 110", 28, 16, 10, 6.4]],
+      mass: function (r, l) { return (r.b * (l - r.b) + Math.PI * r.b * r.b / 4) * r.h * RHO; },
+      note: "Forma A: oba końce zaokrąglone. Długość l wpisz w mm (nie krótsza niż b)." },
+    { id: "din471", n: "DIN 471 – pierścień osadczy zewnętrzny (na wałek)", lab: "Średnica wałka d1 [mm]", keys: ["s", "d2", "m"],
+      desc: { s: "Grubość pierścienia s", d2: "Średnica dna rowka d2", m: "Szerokość rowka m" },
+      leg: [["d1", "średnica wałka"], ["d2", "średnica dna rowka"], ["s", "grubość pierścienia"], ["m", "szerokość rowka"]],
+      rows: [["8", 0.8, 7.6, 0.9], ["10", 1, 9.6, 1.1], ["12", 1, 11.5, 1.1], ["15", 1, 14.3, 1.1], ["16", 1, 15.2, 1.1], ["17", 1, 16.2, 1.1], ["20", 1.2, 19, 1.3], ["22", 1.2, 21, 1.3], ["25", 1.2, 23.9, 1.3], ["28", 1.5, 26.6, 1.6], ["30", 1.5, 28.6, 1.6], ["32", 1.5, 30.3, 1.6], ["35", 1.5, 33, 1.6], ["40", 1.75, 37.5, 1.85], ["45", 1.75, 42.5, 1.85], ["50", 2, 47, 2.15], ["55", 2, 52, 2.15], ["60", 2, 57, 2.15], ["65", 2.5, 62, 2.65], ["70", 2.5, 67, 2.65], ["75", 2.5, 72, 2.65], ["80", 2.5, 76.5, 2.65], ["85", 3, 81.5, 3.15], ["90", 3, 86.5, 3.15], ["100", 3, 96.5, 3.15]],
+      mass: null, note: "Wartości rowka d2 i m podano dla pierścienia normalnego, wybrane średnice. Tolerancje rowka wg normy." },
+    { id: "din472", n: "DIN 472 – pierścień osadczy wewnętrzny (do otworu)", lab: "Średnica otworu d1 [mm]", keys: ["s", "d2", "m"],
+      desc: { s: "Grubość pierścienia s", d2: "Średnica dna rowka d2", m: "Szerokość rowka m" },
+      leg: [["d1", "średnica otworu"], ["d2", "średnica dna rowka"], ["s", "grubość pierścienia"], ["m", "szerokość rowka"]],
+      rows: [["8", 0.8, 8.4, 0.9], ["10", 1, 10.8, 1.1], ["12", 1, 13, 1.1], ["15", 1, 16.2, 1.1], ["16", 1, 17, 1.1], ["17", 1, 18, 1.1], ["20", 1, 21, 1.1], ["22", 1, 23, 1.1], ["25", 1.2, 26.2, 1.3], ["28", 1.2, 29.4, 1.3], ["30", 1.2, 31.4, 1.3], ["32", 1.2, 33.7, 1.3], ["35", 1.5, 37, 1.6], ["40", 1.75, 42.5, 1.85], ["45", 1.75, 47.5, 1.85], ["50", 2, 53, 2.15], ["55", 2, 58, 2.15], ["60", 2, 63, 2.15], ["65", 2.5, 68, 2.65], ["70", 2.5, 73, 2.65], ["75", 2.5, 78, 2.65], ["80", 2.5, 83.5, 2.65], ["85", 3, 88.5, 3.15], ["90", 3, 93.5, 3.15], ["100", 3, 103.5, 3.15]],
+      mass: null, note: "Wartości rowka d2 i m podano dla pierścienia normalnego, wybrane średnice. Tolerancje rowka wg normy." }
+  ];
+  function nmObj(id) { for (var i = 0; i < NORMS.length; i++) if (NORMS[i].id === id) return NORMS[i]; return NORMS[0]; }
+  function nmRow(n) {
+    var cur = (S.nmSz && S.nmSz[n.id]) || n.rows[0][0];
+    for (var i = 0; i < n.rows.length; i++) if (n.rows[i][0] === cur) return n.rows[i];
+    return n.rows[0];
+  }
+  function mv(x) { return String(x).replace(".", ",") + " mm"; }
+  function nmRender() {
+    var n = nmObj(S.nm), row = nmRow(n), ul = $("nmRes"), r = {}, i;
+    ul.innerHTML = "";
+    if (n.th || n.id === "din125") r.d = parseFloat(row[0].slice(1));
+    n.keys.forEach(function (k, j) { r[k] = row[j + 1]; });
+    if (n.th) {
+      var m = MM[row[0]];
+      addRes(ul, "Skok gwintu zgrubnego P", mv(m[0]), "", "", String(m[0]).replace(".", ","));
+      addRes(ul, "Wiertło pod gwint", mv(m[1]), "otwór pod nagwintowanie", "", String(m[1]).replace(".", ","));
+      addRes(ul, "Otwór przejściowy (seria średnia)", mv(m[2]), "wg ISO 273", "", String(m[2]).replace(".", ","));
+    }
+    n.keys.forEach(function (k) { addRes(ul, n.desc[k], mv(r[k]), "", "", String(r[k]).replace(".", ",")); });
+    if (n.hex) addRes(ul, "Wymiar po przekątnej e (ok.)", mv(Math.round(r.s * 1.13 * 10) / 10), "ok. 1,13 · s", "", "");
+    var hasLen = !!n.len, l = hasLen ? parse($("nmLen").value) : 0;
+    if (n.mass && (!hasLen || (isFinite(l) && l > 0))) {
+      if (n.id === "din6885" && l < r.b) addRes(ul, "Masa", "–", "długość l musi być nie mniejsza niż b", "", "");
+      else {
+        var g = n.mass(r, l);
+        addRes(ul, "Masa 1 szt. (stal, orientacyjnie)", (g >= 10 ? Math.round(g * 10) / 10 : Math.round(g * 100) / 100).toString().replace(".", ",") + " g",
+          "1000 szt. ≈ " + (Math.round(g * 10) / 100).toString().replace(".", ",") + " kg", "mass", String(Math.round(g * 100) / 100).replace(".", ","));
+      }
+    } else if (n.mass && hasLen) addRes(ul, "Masa", "–", "wpisz długość l, aby policzyć masę", "", "");
+    $("nmNote").textContent = (n.note ? n.note + " " : "") + "Wymiary w mm, z tablic norm; przed zamówieniem lub wykonaniem sprawdź je w aktualnej normie. Rysunek jest poglądowy (nie w skali).";
+    $("nmDraw").innerHTML = ND[n.id] + drawLegend(n.leg);
+  }
+  function setupNorm() {
+    var s1 = $("nmSel"); s1.innerHTML = "";
+    NORMS.forEach(function (n) { var o = document.createElement("option"); o.value = n.id; o.textContent = n.n; s1.appendChild(o); });
+    S.nm = nmObj(S.nm).id; s1.value = S.nm;
+    var n = nmObj(S.nm), s2 = $("nmSize"); s2.innerHTML = "";
+    n.rows.forEach(function (r) { var o = document.createElement("option"); o.value = r[0]; o.textContent = r[0]; s2.appendChild(o); });
+    s2.value = nmRow(n)[0];
+    $("nmSizeL").textContent = n.lab;
+    $("nmLenBox").hidden = !n.len;
+    $("nmLenL").textContent = n.id === "din6885" ? "Długość wpustu l [mm]" : "Długość l [mm]";
+    $("nmLen").value = S.nmLen;
+    nmRender();
+  }
+  function initNorm() {
+    $("nmSel").addEventListener("change", function () { S.nm = $("nmSel").value; save(); setupNorm(); });
+    $("nmSize").addEventListener("change", function () {
+      if (!S.nmSz || typeof S.nmSz !== "object") S.nmSz = {};
+      S.nmSz[S.nm] = $("nmSize").value; save(); nmRender();
+    });
+    $("nmLen").addEventListener("input", function () { S.nmLen = $("nmLen").value; save(); nmRender(); });
+  }
+
   // ---- Start ---------------------------------------------------------------
-  load(); initCalc(); initShapes(); initFgaz(); initFuels(); initPrices(); initMeas(); loadPrices(); setupTab(); render();
+  load(); initCalc(); initShapes(); initFgaz(); initFuels(); initPrices(); initMeas(); initNorm(); loadPrices(); setupTab(); render();
 
   var online = function () { $("status").textContent = navigator.onLine ? "" : "tryb offline"; };
   window.addEventListener("online", online); window.addEventListener("offline", online); online();
