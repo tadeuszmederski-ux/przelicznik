@@ -474,6 +474,10 @@
     return nf.format(x);
   }
   function raw(x) { return String(Number(x.toPrecision(10))).replace(".", ","); }
+  // Ceny i stawki: zawsze dwa miejsca po przecinku (zł, zł/kWh, zł/MWh, zł/GJ, zł/l itd.).
+  var nf2 = new Intl.NumberFormat("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function fmt2(x) { return isFinite(x) ? nf2.format(x) : "–"; }
+  function raw2(x) { return (Math.round(x * 100) / 100).toFixed(2).replace(".", ","); }
   function find(list, u) { for (var i = 0; i < list.length; i++) if (list[i].u === u) return list[i]; return list[0]; }
   function toBase(e, x) { return e.to ? e.to(x) : x * e.f; }
   function fromBase(e, b) { return e.from ? e.from(b) : b / e.f; }
@@ -1188,7 +1192,7 @@
       + (f.id === "gaz" ? " Gaz rozlicza się w kWh ciepła spalania (ok. 10% więcej niż wg WO), więc koszt liczony wg WO może być nieco zaniżony." : "")
       + (v.price > 0 ? (prItem(f.id) && !(S.fuOv && S.fuOv[f.id] && S.fuOv[f.id].price) ? " Cena z zakładki Ceny (stan: " + prItem(f.id).d + "), możesz ją zmienić." : "") : " Wpisz cenę paliwa, aby policzyć koszt.");
     var zlMJ = fuZlMJ(f, v);
-    if (zlMJ > 0) addRes(ul, "Koszt jednostki energii (cena " + fmt(v.price) + " " + fuPUL(f) + ")", fmt(zlMJ * 3.6) + " zł/kWh", fuUnitCostSec(f, v, zlMJ), "", raw(zlMJ * 3.6));
+    if (zlMJ > 0) addRes(ul, "Koszt jednostki energii (cena " + fmt2(v.price) + " " + fuPUL(f) + ")", fmt2(zlMJ * 3.6) + " zł/kWh", fuUnitCostSec(f, v, zlMJ), "", raw2(zlMJ * 3.6));
     if (!(isFinite(q) && q > 0)) { $("fuNote").textContent = "Wpisz ilość paliwa. " + note; return; }
     var mult = { kg: 1, t: 1000, l: v.rho / 1000, m3: v.rho, tm3: v.rho * 1000 }[$("fuU").value] || 1;
     var mass = q * mult, vol = mass / v.rho, mj = mass * woKg;
@@ -1198,7 +1202,7 @@
     if (f.k === "c") addRes(ul, "Objętość", fmt(vol * 1000) + " l", fmt(vol) + " m³", "", raw(vol * 1000));
     else if (f.k === "g") addRes(ul, "Objętość", fmt(vol) + " m³ n", fmt(vol / 1000) + " tys. m³ n", "", raw(vol));
     else addRes(ul, "Objętość (nasypowo)", fmt(vol) + " m³", fmt(vol * 1000) + " l", "", raw(vol));
-    if (zlMJ > 0) addRes(ul, "Koszt wpisanej ilości", fmt(mj * zlMJ) + " zł", "Cena jednostkowa: " + fmt(v.price) + " " + fuPUL(f), "mass", raw(mj * zlMJ));
+    if (zlMJ > 0) addRes(ul, "Koszt wpisanej ilości", fmt2(mj * zlMJ) + " zł", "Cena jednostkowa: " + fmt2(v.price) + " " + fuPUL(f), "mass", raw2(mj * zlMJ));
     $("fuNote").textContent = note;
   }
   function fuTable() {
@@ -1343,10 +1347,10 @@
   function fuZlMJ(f, v) { return v.price > 0 ? v.price / fuMJperPU(f, v) : 0; }
   function fuUnitCostSec(f, v, z) {
     var woKg = fuWoKg(f, v);
-    var p = [fmt(z * 1000) + " zł/GJ", fmt(z * 3600) + " zł/MWh", fmt(z * woKg) + " zł/kg", fmt(z * woKg * 1000) + " zł/t"];
-    if (f.k === "c") p.push(fmt(z * woKg * v.rho / 1000) + " zł/l");
-    else if (f.k === "g") p.push(fmt(z * v.wo) + " zł/m³ n");
-    else p.push(fmt(z * woKg * v.rho) + " zł/m³ (nasypowo)");
+    var p = [fmt2(z * 1000) + " zł/GJ", fmt2(z * 3600) + " zł/MWh", fmt2(z * woKg) + " zł/kg", fmt2(z * woKg * 1000) + " zł/t"];
+    if (f.k === "c") p.push(fmt2(z * woKg * v.rho / 1000) + " zł/l");
+    else if (f.k === "g") p.push(fmt2(z * v.wo) + " zł/m³ n");
+    else p.push(fmt2(z * woKg * v.rho) + " zł/m³ (nasypowo)");
     return p.join("  ·  ");
   }
   function prRender() {
@@ -1365,10 +1369,10 @@
       b.innerHTML = '<span class="t"></span><span class="pc"><span class="a"></span><span class="k"></span></span><span class="s"></span>';
       b.children[0].textContent = it.n + who;
       if (z > 0) {
-        b.querySelector(".a").textContent = fmt(it.v) + " " + it.u;
-        b.querySelector(".k").textContent = fmt(z * 3.6) + " zł/kWh";
-        b.children[2].textContent = fmt(z * 3600) + " zł/MWh  ·  " + fmt(z * 1000) + " zł/GJ  ·  stan: " + it.d + "  ·  " + it.basis;
-        b.addEventListener("click", function () { copy(raw(it.v)); });
+        b.querySelector(".a").textContent = fmt2(it.v) + " " + it.u;
+        b.querySelector(".k").textContent = fmt2(z * 3.6) + " zł/kWh";
+        b.children[2].textContent = fmt2(z * 3600) + " zł/MWh  ·  " + fmt2(z * 1000) + " zł/GJ  ·  stan: " + it.d + "  ·  " + it.basis;
+        b.addEventListener("click", function () { copy(raw2(it.v)); });
       } else {
         b.querySelector(".a").textContent = "brak danych";
         b.querySelector(".k").textContent = "–";
@@ -1381,8 +1385,7 @@
   function ozeRender() {
     var ul = $("ozeList"); ul.innerHTML = "";
     var kurs = (CENY.paliwa && CENY.paliwa.kurs_eur_pln) || 4.4, last = "";
-    function rng(a, b) { return (b === null || b === undefined || b === a) ? fmt(a) : fmt(a) + "–" + fmt(b); }
-    function r3(x) { return Math.round(x * 1000) / 1000; }
+    function rng(a, b) { return (b === null || b === undefined || fmt2(a) === fmt2(b)) ? fmt2(a) : fmt2(a) + "–" + fmt2(b); }
     (CENY.oze || []).forEach(function (x) {
       if (x.grp !== last) {
         var h = document.createElement("li"); h.className = "grp"; h.textContent = x.grp; ul.appendChild(h); last = x.grp;
@@ -1399,14 +1402,14 @@
         var f = x.u === "€/MWh" ? kurs : (x.u === "USD/MWh" ? USD_PLN : 1);
         var lo = x.min * f, hi = (x.max === null || x.max === undefined) ? lo : x.max * f, od = x.od ? "ponad " : "";
         b.querySelector(".a").textContent = od + rng(x.min, x.max) + " " + x.u;
-        b.querySelector(".k").textContent = od + rng(r3(lo / 1000), r3(hi / 1000)) + " zł/kWh";
-        b.children[2].textContent = (x.u === "zł/MWh" ? "" : "= " + rng(Math.round(lo * 10) / 10, Math.round(hi * 10) / 10) + " zł/MWh  ·  ") + x.src;
-        b.addEventListener("click", function () { copy(raw(r3(lo / 1000))); });
+        b.querySelector(".k").textContent = od + rng(lo / 1000, hi / 1000) + " zł/kWh";
+        b.children[2].textContent = (x.u === "zł/MWh" ? "" : "= " + rng(lo, hi) + " zł/MWh  ·  ") + x.src;
+        b.addEventListener("click", function () { copy(raw2(lo / 1000)); });
       }
       li.appendChild(b); ul.appendChild(li);
     });
     $("ozeNote").textContent = "Ceny referencyjne w aukcjach to maksymalne ceny ofert, ceny wygrane to ceny sprzedaży energii w systemie aukcyjnym, a LCOE to średni koszt wytworzenia w całym okresie życia instalacji. "
-      + "To trzy różne wielkości, więc nie należy ich traktować jako jednej ceny. Dolary przeliczono po " + fmt(USD_PLN) + " zł (kurs ze źródła), euro po kursie z biuletynu naftowego (" + fmt(kurs) + " zł). "
+      + "To trzy różne wielkości, więc nie należy ich traktować jako jednej ceny. Dolary przeliczono po " + fmt2(USD_PLN) + " zł (kurs ze źródła), euro po kursie z biuletynu naftowego (" + fmt2(kurs) + " zł). Wszystkie stawki są zaokrąglone do dwóch miejsc po przecinku. "
       + "Źródła nie podają polskiego LCOE dla biogazowni, a aukcje na biogaz w 2026 r. zakończyły się bez rozstrzygnięcia. Dla własnej instalacji lepsza jest cena z oferty wykonawcy. "
       + "Wpisy są ręczne i nie odświeżają się same.";
   }
